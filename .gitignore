@@ -1,0 +1,13 @@
+# Node
+node_modules/
+dist/
+build/
+.env
+.env.local
+.vscode/
+.DS_Store
+coverage/
+.idea/
+
+# OS
+Thumbs.db
