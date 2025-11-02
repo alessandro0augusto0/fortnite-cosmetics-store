@@ -1,4 +1,3 @@
-version: '3.8'
 services:
   db:
     image: postgres:15
@@ -6,9 +5,21 @@ services:
       POSTGRES_DB: fortnite
       POSTGRES_USER: fortnite
       POSTGRES_PASSWORD: fortnite
-    ports: ['5432:5432']
+    ports:
+      - "5432:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
+
+  backend:
+    build: ../backend
+    environment:
+      DATABASE_URL: "postgresql://fortnite:fortnite@db:5432/fortnite?schema=public"
+      JWT_SECRET: "supersegredo123"
+      PORT: 4000
+    depends_on:
+      - db
+    ports:
+      - "4000:4000"
 
 volumes:
   db-data:
