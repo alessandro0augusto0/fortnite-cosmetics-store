@@ -1,29 +1,50 @@
-# Fortnite Cosmetics Store
+# 🎮 Fortnite Cosmetics Store
 
-Projeto do desafio técnico — listagem e compra simulada de cosméticos do Fortnite.
+Aplicação completa (frontend + backend) que consome a **API pública do Fortnite** para exibir, filtrar e simular a compra de cosméticos com créditos virtuais (V-Bucks).
+Desenvolvido como parte de um **desafio técnico**, com foco em boas práticas, arquitetura limpa e documentação completa.
 
 ---
 
-## ⚙️ Visão geral
+## ⚙️ Visão Geral
 
 * **Frontend:** React + TypeScript (Vite)
-* **Backend:** Node.js + TypeScript + NestJS
-* **Banco:** PostgreSQL
-* **ORM:** Prisma
+* **Backend:** NestJS + Prisma ORM + PostgreSQL
+* **Estilo:** TailwindCSS
+* **Autenticação:** JWT + bcrypt
 * **Containerização:** Docker Compose
+* **Integração:** API externa [Fortnite API](https://fortnite-api.com/v2/cosmetics)
 
 ---
 
-## 🚀 Como rodar o projeto (ambiente de desenvolvimento)
+## 🚀 Tecnologias Utilizadas
 
-### 1. Clonar o repositório
+### **Frontend**
+
+* React (Vite + TypeScript)
+* Tailwind CSS
+* Axios (integração com API)
+* ESLint e PostCSS configurados
+
+### **Backend**
+
+* NestJS
+* Prisma ORM
+* PostgreSQL
+* JWT (autenticação)
+* Docker e Docker Compose
+
+---
+
+## 💻 Como Rodar o Projeto (Ambiente de Desenvolvimento)
+
+### 1️⃣ Clonar o repositório
 
 ```bash
 git clone https://github.com/alessandro0augusto0/fortnite-cosmetics-store.git
 cd fortnite-cosmetics-store
 ```
 
-### 2. Subir os containers
+### 2️⃣ Subir os containers
 
 ```bash
 docker compose -f infra/docker-compose.yml up -d --build
@@ -31,31 +52,69 @@ docker compose -f infra/docker-compose.yml up -d --build
 
 Isso iniciará:
 
-* **backend** em `localhost:4000`
-* **banco de dados PostgreSQL** em `localhost:5432`
+* **Backend:** `http://localhost:4000`
+* **Banco PostgreSQL:** `localhost:5432` (usuário, senha e banco: `fortnite`)
 
-### 3. Ver logs (opcional)
+### 3️⃣ Ver logs (opcional)
 
 ```bash
 docker logs -f infra-backend-1
 ```
 
-### 4. Acessar o container do backend (opcional)
+### 4️⃣ Acessar o container do backend (opcional)
 
 ```bash
 docker exec -it infra-backend-1 bash
 ```
 
-### 5. Rodar migrations ou gerar o Prisma Client manualmente (caso necessário)
+### 5️⃣ Rodar migrations ou gerar o Prisma Client manualmente (caso necessário)
 
 ```bash
 npx prisma migrate dev --name init
 npx prisma generate
 ```
 
+### 6️⃣ Rodar o frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Acesse: [http://localhost:5173](http://localhost:5173)
+
 ---
 
-## 🧩 Endpoints disponíveis
+## 🧩 Estrutura de Pastas
+
+```
+fortnite-cosmetics-store/
+├── backend/
+│   ├── src/
+│   │   ├── auth/
+│   │   ├── cosmetics/
+│   │   ├── prisma/
+│   │   └── app.module.ts
+│   ├── prisma/schema.prisma
+│   ├── Dockerfile
+│   └── package.json
+│
+├── frontend/
+│   ├── public/images/
+│   ├── src/
+│   │   ├── data/
+│   │   ├── App.tsx
+│   │   └── main.tsx
+│   └── vite.config.ts
+│
+└── infra/
+    └── docker-compose.yml
+```
+
+---
+
+## 🔌 Endpoints Disponíveis
 
 ### Base URL
 
@@ -63,13 +122,11 @@ npx prisma generate
 http://localhost:4000
 ```
 
----
-
 ### **POST /auth/register**
 
 Cria um novo usuário no banco.
 
-**Request Body:**
+**Request Body**
 
 ```json
 {
@@ -78,7 +135,7 @@ Cria um novo usuário no banco.
 }
 ```
 
-**Response 201:**
+**Response 201**
 
 ```json
 {
@@ -92,7 +149,7 @@ Cria um novo usuário no banco.
 
 Realiza login com usuário existente.
 
-**Request Body:**
+**Request Body**
 
 ```json
 {
@@ -101,7 +158,7 @@ Realiza login com usuário existente.
 }
 ```
 
-**Response 200:**
+**Response 200**
 
 ```json
 {
@@ -111,61 +168,73 @@ Realiza login com usuário existente.
 
 ---
 
-## 🧰 Estrutura do projeto
+### **GET /cosmetics**
 
-```
-fortnite-cosmetics-store/
-│
-├── backend/
-│   ├── prisma/                 # Schema e .env usados pelo Prisma CLI
-│   │   ├── schema.prisma
-│   │   └── .env
-│   ├── src/
-│   │   ├── auth/               # Módulo de autenticação (register/login)
-│   │   ├── prisma/             # PrismaService para injeção no NestJS
-│   │   ├── app.module.ts
-│   │   └── main.ts
-│   ├── Dockerfile
-│   └── package.json
-│
-├── infra/
-│   └── docker-compose.yml
-│
-└── frontend/                   # (a ser criado na Etapa 3)
-```
+Lista todos os cosméticos (dados da API Fortnite).
+
+### **GET /cosmetics/new**
+
+Lista cosméticos novos.
+
+### **GET /cosmetics/shop**
+
+Lista cosméticos atualmente à venda.
 
 ---
 
-## 🧾 Backlog
+## 🧭 Como Testar o Sistema (Para Avaliadores)
 
-* [x] Etapa 1: Criar repositório e scaffold
-* [x] Etapa 2: Criar backend inicial (auth, prisma schema)
-* [ ] Etapa 3: Criar frontend inicial (listagem mock)
-* [ ] Etapa 4: Sincronização com API externa
-* [ ] Etapa 5: Compras, devoluções e histórico
-* [ ] Etapa 6: Testes automatizados e Docker Compose final
+1. **Registrar um novo usuário:**
+
+   * `POST http://localhost:4000/auth/register`
+   * Body:
+
+     ```json
+     { "email": "usuario@teste.com", "password": "123456" }
+     ```
+
+2. **Logar com o usuário criado:**
+
+   * `POST http://localhost:4000/auth/login`
+
+3. **Listar cosméticos:**
+
+   * `GET http://localhost:4000/cosmetics`
+
+4. **Explorar o frontend:**
+
+   * `http://localhost:5173`
+
+5. **Banco de dados (opcional):**
+
+   ```bash
+   docker exec -it infra-db-1 psql -U fortnite -d fortnite
+   \dt
+   SELECT * FROM "User";
+   ```
 
 ---
 
-## 💬 Observações
+## 🧠 Decisões Técnicas Relevantes
 
-* O projeto já conta com autenticação via **JWT** e senhas criptografadas com **bcrypt**.
-* Todas as variáveis de ambiente estão configuradas em `backend/prisma/.env`.
-* O banco PostgreSQL roda dentro do container `infra-db-1`, **não é necessário** ter o Postgres instalado localmente.
-
----
-
-## 🧠 Dica
-
-Se quiser inspecionar o banco dentro do container:
-
-```bash
-docker exec -it infra-db-1 psql -U fortnite -d fortnite
-\dt            # lista tabelas
-SELECT * FROM "User";
-```
+* **NestJS** adotado pela arquitetura modular e integração limpa com Prisma.
+* **Prisma ORM** garante consistência e tipagem forte no acesso ao banco.
+* **Docker Compose** padroniza todo o ambiente de desenvolvimento.
+* **TailwindCSS** usado para prototipagem e responsividade rápida.
+* **Axios** para consumo direto da API pública do Fortnite.
+* **Commits semânticos** e versionamento limpo (semver).
 
 ---
 
-🟢 **Etapa atual:** Etapa 2 finalizada — backend 100% funcional
-🏗️ **Próximo passo:** iniciar Etapa 3 (frontend mock)
+## 🧪 Testes Automatizados (Planejados)
+
+* Configuração inicial com **Jest**.
+* Mocks da API externa com `msw` no frontend.
+
+---
+
+## 👤 Autor
+
+**Alessandro Augusto**
+Estudante de Engenharia de Computação 💻
+Desenvolvido como parte do desafio técnico **Fortnite Cosmetics Store**.
