@@ -1,6 +1,10 @@
+version: "3.8"
+
 services:
   db:
     image: postgres:15
+    container_name: infra-db-1
+    restart: always
     environment:
       POSTGRES_DB: fortnite
       POSTGRES_USER: fortnite
@@ -9,9 +13,13 @@ services:
       - "5432:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
+    networks:
+      - app-network
 
   backend:
-    build: ../backend
+    build:
+      context: ../backend
+    container_name: infra-backend-1
     environment:
       DATABASE_URL: "postgresql://fortnite:fortnite@db:5432/fortnite?schema=public"
       JWT_SECRET: "supersegredo123"
@@ -20,6 +28,12 @@ services:
       - db
     ports:
       - "4000:4000"
+    networks:
+      - app-network
 
 volumes:
   db-data:
+
+networks:
+  app-network:
+    driver: bridge

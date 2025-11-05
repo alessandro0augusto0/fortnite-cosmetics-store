@@ -1,42 +1,37 @@
-import { cosmetics } from "./data/cosmetics";
+import { BrowserRouter, Link, Route, Routes } from 'react-router-dom';
+import CosmeticsPage from './pages/CosmeticsPage';
 
-function App() {
+function Home() {
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100 p-8">
-      <h1 className="text-4xl font-bold text-center text-blue-400 mb-10">
-        Fortnite Cosmetics Store
-      </h1>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
-        {cosmetics.map((item) => (
-          <div
-            key={item.id}
-            className="bg-gray-800 rounded-xl shadow-md hover:shadow-lg transition-shadow duration-200 p-4 flex flex-col items-center"
-          >
-            <img
-              src={item.image}
-              alt={item.name}
-              className="w-40 h-40 object-cover rounded-lg mb-4"
-            />
-            <h2 className="text-lg font-semibold text-white">{item.name}</h2>
-            <p className="text-sm text-gray-400">{item.type}</p>
-            <p
-              className={`mt-1 text-sm font-medium ${
-                item.rarity === "Legendary"
-                  ? "text-yellow-400"
-                  : item.rarity === "Epic"
-                  ? "text-purple-400"
-                  : "text-blue-400"
-              }`}
-            >
-              {item.rarity}
-            </p>
-            <p className="mt-2 text-green-400 font-bold">{item.price} V-Bucks</p>
-          </div>
-        ))}
+    <div className="max-w-3xl mx-auto p-8 text-center">
+      <h1 className="text-3xl font-semibold mb-3">Fortnite Cosmetics Store</h1>
+      <p className="text-gray-400">Explore, filtre e descubra cosméticos do Fortnite.</p>
+      <div className="mt-6">
+        <Link to="/cosmetics" className="inline-block px-4 py-2 rounded-md border border-gray-700 hover:bg-gray-800">
+          Ir para Cosméticos
+        </Link>
       </div>
     </div>
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <BrowserRouter>
+      <header className="border-b border-gray-800">
+        <nav className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
+          <Link to="/" className="font-medium">Fortnite Cosmetics</Link>
+          <div className="flex items-center gap-3 text-sm">
+            <Link to="/cosmetics" className="hover:underline">Cosméticos</Link>
+          </div>
+        </nav>
+      </header>
+      <main className="py-6">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/cosmetics" element={<CosmeticsPage />} />
+        </Routes>
+      </main>
+    </BrowserRouter>
+  );
+}
