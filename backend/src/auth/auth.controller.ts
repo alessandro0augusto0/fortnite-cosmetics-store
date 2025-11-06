@@ -9,11 +9,13 @@ export class AuthController {
 
   @Post('register')
   async register(@Body() dto: RegisterDto) {
-    return this.authService.register(dto);
+    const result = await this.authService.register(dto);
+    return { token: result.access_token }; // aqui devolve apenas o token
   }
 
   @Post('login')
   async login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
+    const result = await this.authService.login(dto);
+    return { token: result.access_token }; // aqui tbm
   }
 }
