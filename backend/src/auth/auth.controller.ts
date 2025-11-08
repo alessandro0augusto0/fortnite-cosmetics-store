@@ -1,21 +1,29 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, Get, UseGuards, Req } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { RegisterDto } from './dto/register.dto';
-import { LoginDto } from './dto/login.dto';
+import { JwtAuthGuard } from './jwt.guard';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
-  async register(@Body() dto: RegisterDto) {
-    const result = await this.authService.register(dto);
-    return { token: result.access_token }; // aqui devolve apenas o token
+  async register(@Body() body: { email: string; password: string }) {
+    const token = await this.authService.register(body.email, body.password);
+    // o service já retorna a string JWT
+    return { token };
   }
 
   @Post('login')
-  async login(@Body() dto: LoginDto) {
-    const result = await this.authService.login(dto);
-    return { token: result.access_token }; // aqui tbm
+  async login(@Body() body: { email: string; password: string }) {
+    const token = await this.authService.login(body.email, body.password);
+    // o service já retorna a string JWT
+    return { token };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me')
+  async getProfile(@Req() req: any) {
+    const user = await this.authService.getUserProfile(req.user.sub);
+    return user;
   }
 }
