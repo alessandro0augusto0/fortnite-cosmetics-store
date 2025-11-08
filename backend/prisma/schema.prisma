@@ -9,33 +9,36 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  vbucks    Int      @default(10000)
-  createdAt DateTime @default(now())
-  purchases Purchase[]
+  id         String      @id @default(uuid())
+  email      String      @unique
+  password   String
+  vbucks     Int         @default(10000)
+  createdAt  DateTime    @default(now())
+  purchases  Purchase[]
 }
 
 model Cosmetic {
-  id          String   @id @default(uuid())
+  id          String      @id @default(uuid())
   name        String
   description String?
   type        String?
   rarity      String?
   image       String?
-  price       Int
-  createdAt   DateTime @default(now())
+  price       Int          @default(800)
+  createdAt   DateTime     @default(now())
   purchases   Purchase[]
 }
 
 model Purchase {
-  id         String   @id @default(uuid())
-  userId     String
-  cosmeticId String
-  createdAt  DateTime @default(now())
-  returned   Boolean  @default(false)
+  id            String   @id @default(uuid())
+  userId        String
+  cosmeticId    String
+  cosmeticName  String   // ✅ novo campo
+  price         Int      // ✅ novo campo
+  createdAt     DateTime @default(now())
+  returned      Boolean  @default(false)
 
   user     User     @relation(fields: [userId], references: [id])
   cosmetic Cosmetic @relation(fields: [cosmeticId], references: [id])
 }
+
