@@ -1,9 +1,11 @@
+// frontend/src/App.tsx
 import { BrowserRouter, Link, Route, Routes, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import CosmeticsPage from './pages/CosmeticsPage';
 import AuthPage from './pages/AuthPage';
-import { getToken, clearToken } from './lib/auth';
+import { getToken, clearToken, getUserEmail, getUserId, isTokenExpired } from './lib/auth';
 import ProtectedRoute from './components/ProtectedRoute';
+import api, { fetchProfile } from './lib/api';
 
 function Home() {
   return (
@@ -28,20 +30,60 @@ function Home() {
   );
 }
 
+function Avatar({ label }: { label: string }) {
+  // circle with initials (or first letter)
+  const initial = label?.charAt(0)?.toUpperCase() ?? '?';
+  return (
+    <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-sm font-medium">
+      {initial}
+    </div>
+  );
+}
+
 function Header() {
-  const [isLogged, setIsLogged] = useState(false);
+  const [email, setEmail] = useState<string | null>(null);
+  const [vbucks, setVbucks] = useState<number | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const token = getToken();
-    setIsLogged(!!token);
+    // se token inválido ou expirado, limpamos
+    if (!getToken() || isTokenExpired()) {
+      clearToken();
+      setEmail(null);
+      setVbucks(null);
+      return;
+    }
+
+    const localEmail = getUserEmail();
+    setEmail(localEmail);
+
+    // tenta buscar profile no backend (se endpoint existir)
+    (async () => {
+      try {
+        const profile = await fetchProfile(); // espera { email, vbucks, ... }
+        if (profile?.email) setEmail(profile.email);
+        if (typeof profile?.vbucks === 'number') setVbucks(profile.vbucks);
+      } catch (err) {
+        // fallback: se não existir endpoint, podemos tentar usar um valor padrão
+        // ou manter null (mostramos fallback visual)
+        // console.debug('fetchProfile falhou (ok):', err);
+        // opcional: tentar buscar vbucks localmente (se tiver)
+        setVbucks(null);
+      }
+    })();
   }, []);
 
   function handleLogout() {
     clearToken();
-    setIsLogged(false);
+    setEmail(null);
+    setVbucks(null);
     navigate('/auth');
   }
+
+  const isLogged = !!email;
+
+  // formata nome curto (antes do @)
+  const shortName = email ? email.split('@')[0] : null;
 
   return (
     <header className="border-b border-gray-800">
@@ -49,16 +91,26 @@ function Header() {
         <Link to="/" className="font-medium">
           Fortnite Cosmetics
         </Link>
-        <div className="flex items-center gap-3 text-sm">
+        <div className="flex items-center gap-4 text-sm">
           <Link to="/cosmetics" className="hover:underline">
             Cosméticos
           </Link>
+
           {isLogged ? (
             <>
-              <span className="text-gray-400">Bem-vindo, jogador!</span>
+              <div className="flex items-center gap-3">
+                <Avatar label={shortName ?? 'U'} />
+                <div className="text-xs text-gray-300">
+                  <div>Bem-vindo, <strong className="text-white">{shortName}</strong></div>
+                  <div className="text-[11px] text-gray-400">
+                    V-Bucks: {vbucks !== null ? vbucks.toLocaleString() : '—'}
+                  </div>
+                </div>
+              </div>
+
               <button
                 onClick={handleLogout}
-                className="text-red-400 hover:text-red-300 underline"
+                className="ml-3 text-red-400 hover:text-red-300 underline text-sm"
               >
                 Sair
               </button>

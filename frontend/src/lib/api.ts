@@ -7,7 +7,6 @@ const api = axios.create({
   timeout: 15000,
 });
 
-// Envia Authorization: Bearer <token> se existir
 api.interceptors.request.use((config) => {
   const token = getToken();
   if (token) {
@@ -17,16 +16,24 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Se o backend responder 401, limpamos o token (logout “silencioso”)
 api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err?.response?.status === 401) {
       clearToken();
-      // opcional: podemos redirecionar para /login depois
+      // opcional: redirecionamento global para /auth pode ser feito aqui
     }
     return Promise.reject(err);
   }
 );
+
+/**
+ * Helper para buscar perfil do usuário no backend (se existir endpoint /auth/me).
+ * Se o endpoint não existir, o catch vai falhar graciosamente.
+ */
+export async function fetchProfile() {
+  const res = await api.get('/auth/me'); // backend: opcional, se existir
+  return res.data;
+}
 
 export default api;
