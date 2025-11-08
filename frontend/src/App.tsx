@@ -45,33 +45,33 @@ function Header() {
   const [vbucks, setVbucks] = useState<number | null>(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    // se token inválido ou expirado, limpamos
-    if (!getToken() || isTokenExpired()) {
+useEffect(() => {
+  const loadProfile = async () => {
+    const token = getToken();
+
+    if (!token || isTokenExpired()) {
       clearToken();
       setEmail(null);
       setVbucks(null);
       return;
     }
 
-    const localEmail = getUserEmail();
-    setEmail(localEmail);
+    // tenta buscar o perfil do backend
+    const profile = await fetchProfile();
 
-    // tenta buscar profile no backend (se endpoint existir)
-    (async () => {
-      try {
-        const profile = await fetchProfile(); // espera { email, vbucks, ... }
-        if (profile?.email) setEmail(profile.email);
-        if (typeof profile?.vbucks === 'number') setVbucks(profile.vbucks);
-      } catch (err) {
-        // fallback: se não existir endpoint, podemos tentar usar um valor padrão
-        // ou manter null (mostramos fallback visual)
-        // console.debug('fetchProfile falhou (ok):', err);
-        // opcional: tentar buscar vbucks localmente (se tiver)
-        setVbucks(null);
-      }
-    })();
-  }, []);
+    if (profile) {
+      setEmail(profile.email);
+      setVbucks(profile.vbucks);
+    } else {
+      // fallback para o decode local (caso o /auth/me falhe)
+      const decodedEmail = getUserEmail();
+      setEmail(decodedEmail);
+    }
+  };
+
+  loadProfile();
+}, []);
+
 
   function handleLogout() {
     clearToken();

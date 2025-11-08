@@ -32,8 +32,17 @@ api.interceptors.response.use(
  * Se o endpoint não existir, o catch vai falhar graciosamente.
  */
 export async function fetchProfile() {
-  const res = await api.get('/auth/me'); // backend: opcional, se existir
-  return res.data;
+  try {
+    const res = await api.get('/auth/me');
+    return res.data; // { id, email, vbucks, createdAt }
+  } catch (err: any) {
+    if (err?.response?.status === 401) {
+      clearToken();
+      return null;
+    }
+    console.error('Erro ao buscar perfil:', err.message || err);
+    return null;
+  }
 }
 
 export default api;
