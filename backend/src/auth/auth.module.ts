@@ -3,11 +3,12 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaModule } from '../prisma/prisma.module';
 import { JwtStrategy } from './jwt.strategy';
 
 @Module({
   imports: [
+    PrismaModule, // <-- FALTAVA ISSO
     PassportModule,
     JwtModule.register({
       secret: 'supersegredo123',
@@ -15,6 +16,6 @@ import { JwtStrategy } from './jwt.strategy';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, PrismaService, JwtStrategy],
+  providers: [AuthService, JwtStrategy],
 })
 export class AuthModule {}

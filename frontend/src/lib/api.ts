@@ -21,16 +21,14 @@ api.interceptors.response.use(
   (err) => {
     if (err?.response?.status === 401) {
       clearToken();
-      // opcional: redirecionamento global para /auth pode ser feito aqui
     }
     return Promise.reject(err);
   }
 );
 
-/**
- * Helper para buscar perfil do usuário no backend (se existir endpoint /auth/me).
- * Se o endpoint não existir, o catch vai falhar graciosamente.
- */
+// ==============================
+// PERFIL (Auth)
+// ==============================
 export async function fetchProfile() {
   try {
     const res = await api.get('/auth/me');
@@ -43,6 +41,19 @@ export async function fetchProfile() {
     console.error('Erro ao buscar perfil:', err.message || err);
     return null;
   }
+}
+
+// ==============================
+// SHOP (Compras)
+// ==============================
+export async function buyCosmetic(cosmeticId: string, cosmeticName: string, price: number) {
+  const res = await api.post('/shop/buy', { cosmeticId, cosmeticName, price });
+  return res.data; // { message, newBalance }
+}
+
+export async function getPurchases() {
+  const res = await api.get('/shop/purchases');
+  return res.data; // array de compras
 }
 
 export default api;

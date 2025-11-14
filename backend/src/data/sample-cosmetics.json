@@ -1,0 +1,18 @@
+[
+  {
+    "id": "CID_TESTE_01",
+    "name": "Dark Knight",
+    "description": "Um cavaleiro lendário envolto em sombras.",
+    "price": 1200,
+    "image": "https://static.wikia.nocookie.net/fortnite_gamepedia/images/1/15/Dark_Knight_-_Outfit_-_Fortnite.png",
+    "rarity": "legendary"
+  },
+  {
+    "id": "CID_TESTE_02",
+    "name": "Crimson Blade",
+    "description": "Uma lâmina forjada no fogo da guerra.",
+    "price": 800,
+    "image": "https://static.wikia.nocookie.net/fortnite_gamepedia/images/a/ab/CrimsonAxe.png",
+    "rarity": "rare"
+  }
+]
