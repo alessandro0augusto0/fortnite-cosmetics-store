@@ -2,8 +2,6 @@ import { Injectable, UnauthorizedException, NotFoundException } from '@nestjs/co
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
-import { RegisterDto } from './dto/register.dto';
-import { LoginDto } from './dto/login.dto';
 
 @Injectable()
 export class AuthService {
@@ -12,7 +10,9 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  // ✅ Agora aceita email e password diretos, como o controller espera
+  /**
+   * REGISTRAR USUÁRIO
+   */
   async register(email: string, password: string) {
     const existingUser = await this.prisma.user.findUnique({
       where: { email },
@@ -32,9 +32,14 @@ export class AuthService {
       },
     });
 
-    return this.generateToken(user.id, user.email);
+    const token = this.generateToken(user.id, user.email);
+
+    return { token };
   }
 
+  /**
+   * LOGIN
+   */
   async login(email: string, password: string) {
     const user = await this.prisma.user.findUnique({
       where: { email },
@@ -49,11 +54,19 @@ export class AuthService {
       throw new UnauthorizedException('Credenciais inválidas.');
     }
 
-    return this.generateToken(user.id, user.email);
+    const token = this.generateToken(user.id, user.email);
+
+    return { token };
   }
 
-  // ✅ Novo método para /auth/me
+  /**
+   * PERFIL /auth/me
+   */
   async getUserProfile(userId: string) {
+    if (!userId) {
+      throw new UnauthorizedException('Token inválido ou expirado.');
+    }
+
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { id: true, email: true, vbucks: true, createdAt: true },
@@ -66,6 +79,9 @@ export class AuthService {
     return user;
   }
 
+  /**
+   * GERAR TOKEN JWT
+   */
   private generateToken(userId: string, email: string) {
     const payload = { sub: userId, email };
     return this.jwtService.sign(payload);

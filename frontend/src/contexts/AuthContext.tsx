@@ -1,8 +1,12 @@
-// frontend/src/contexts/AuthContext.tsx
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import api, { fetchProfile } from '../lib/api';
-import { getToken, setToken as storeToken, clearToken as removeToken, getUserEmail } from '../lib/auth';
+import { 
+  getToken, 
+  setToken as storeToken, 
+  clearToken as removeToken, 
+  getUserEmail 
+} from '../lib/auth';
 
 type UserProfile = {
   id: string;
@@ -22,7 +26,7 @@ type AuthContextValue = {
   setVbucks: (n: number) => void;
 };
 
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [token, setToken] = useState<string | null>(() => getToken() ?? null);
@@ -30,8 +34,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [vbucks, setVbucksState] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
+  /**
+   * Carrega o perfil quando o app inicia e quando o token é alterado
+   */
   async function load() {
     setLoading(true);
+
     const stored = getToken();
     if (!stored) {
       setToken(null);
@@ -40,15 +48,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
       return;
     }
+
     setToken(stored);
+
     try {
       const p = await fetchProfile();
       if (p) {
         setProfile(p);
         setVbucksState(p.vbucks ?? null);
       } else {
-        // fallback decode email (if implemented)
-        setProfile({ id: '', email: getUserEmail() ?? '', vbucks: vbucks ?? 0 });
+        // fallback mínimo caso o token não traga perfil
+        setProfile({ id: '', email: getUserEmail() ?? '', vbucks: 0 });
       }
     } catch (e) {
       console.error('Erro ao buscar perfil no init:', e);
@@ -61,19 +71,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /**
+   * LOGIN
+   */
   async function login(newToken: string) {
     storeToken(newToken);
     setToken(newToken);
+
     try {
       await refreshProfile();
     } catch (e) {
-      console.error('login -> refreshProfile falhou', e);
+      console.error('Erro ao atualizar perfil após login', e);
     }
   }
 
+  /**
+   * LOGOUT
+   */
   function logout() {
     removeToken();
     setToken(null);
@@ -81,6 +97,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setVbucksState(null);
   }
 
+  /**
+   * REFRESH PROFILE
+   */
   async function refreshProfile() {
     try {
       const p = await fetchProfile();
@@ -93,21 +112,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (err: any) {
       console.error('refreshProfile error', err);
-      toast.error('Erro ao atualizar perfil');
+      toast.error('Erro ao atualizar perfil.');
       setProfile(null);
       setVbucksState(null);
       throw err;
     }
   }
 
+  /**
+   * ATUALIZAR SALDO GLOBAL
+   */
   function setVbucks(n: number) {
     setVbucksState(n);
-    // opcional: refletir no profile
     setProfile((old) => (old ? { ...old, vbucks: n } : old));
   }
 
   return (
-    <AuthContext.Provider value={{ token, profile, vbucks, loading, login, logout, refreshProfile, setVbucks }}>
+    <AuthContext.Provider 
+      value={{ token, profile, vbucks, loading, login, logout, refreshProfile, setVbucks }}
+    >
       {children}
     </AuthContext.Provider>
   );

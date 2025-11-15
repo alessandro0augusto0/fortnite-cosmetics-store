@@ -5,7 +5,7 @@ import { toast } from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 
 // ============================
-// TIPOS AUXILIARES
+// COMPONENTES LOCAIS (mínimos)
 // ============================
 type DivProps = React.HTMLAttributes<HTMLDivElement>;
 
@@ -56,15 +56,19 @@ export default function CosmeticsPage() {
 
   const { vbucks, setVbucks } = useAuth();
 
+  // Carrega cosméticos
   useEffect(() => {
     const fetchCosmetics = async () => {
       try {
         const res = await api.get('/cosmetics');
-        let payload = res.data?.data?.br || res.data?.data || res.data;
-        if (!Array.isArray(payload)) payload = [];
+
+        // O backend retorna diretamente o array
+        const payload = Array.isArray(res.data) ? res.data : [];
+
         setCosmetics(payload);
       } catch (err) {
         console.error('Erro ao buscar cosméticos:', err);
+        toast.error('Erro ao carregar cosméticos.');
       } finally {
         setLoading(false);
       }
@@ -73,6 +77,7 @@ export default function CosmeticsPage() {
     fetchCosmetics();
   }, []);
 
+  // Compra
   async function handleBuy(cosmetic: Cosmetic) {
     try {
       const data = await buyCosmetic(cosmetic.id, cosmetic.name, cosmetic.price);
@@ -120,6 +125,7 @@ export default function CosmeticsPage() {
               <p className="text-sm text-gray-400 mb-3 text-center">
                 {cosmetic.description || 'Sem descrição'}
               </p>
+
               <div className="text-yellow-400 mb-3 font-semibold">
                 {cosmetic.price.toLocaleString()} V-Bucks
               </div>
