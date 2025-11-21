@@ -25,10 +25,8 @@ export class CosmeticsService {
     this.apiBase = process.env.FORTNITE_API_BASE || 'https://fortnite-api.com/v2';
   }
 
-  // ============================================
   // LISTAGEM COM PAGINAÇÃO + FILTROS + ORDENAÇÃO
-  // ============================================
-  async findAll(params: FindAllParams = {}) {
+  async findAll(params: FindAllParams = {}, currentUserId?: string) {
     const page = Math.max(1, Number(params.page) || 1);
     const limit = Math.min(100, Math.max(1, Number(params.limit) || 20));
     const skip = (page - 1) * limit;
@@ -66,7 +64,7 @@ export class CosmeticsService {
         orderBy[params.sortBy] = params.sortOrder === 'asc' ? 'asc' : 'desc';
       }
     } else {
-      orderBy.createdAt = 'desc'; // padrão
+      orderBy.createdAt = 'desc';
     }
 
     const [total, data] = await Promise.all([
@@ -79,86 +77,289 @@ export class CosmeticsService {
       }),
     ]);
 
+    // owned set for current user
+    const ownedSet = new Set<string>();
+    if (currentUserId && data.length) {
+      const ids = data.map((d) => d.id);
+      const purchases = await this.prisma.purchase.findMany({
+        where: { userId: currentUserId, cosmeticId: { in: ids }, returned: false },
+        select: { cosmeticId: true },
+      });
+      for (const p of purchases) ownedSet.add(p.cosmeticId);
+    }
+
+    const mapped = data.map((c) => {
+      const regular = c.regularPrice ?? null;
+      const final = c.finalPrice ?? null;
+      const isPromo = (final ?? c.price) < (regular ?? c.price);
+      return {
+        id: c.id,
+        name: c.name,
+        description: c.description,
+        type: c.type,
+        rarity: c.rarity,
+        image: c.image,
+        price: c.price,
+        regularPrice: regular,
+        finalPrice: final,
+        isNew: Boolean(c.isNew),
+        onSale: Boolean(c.onSale),
+        isPromo,
+        owned: ownedSet.has(c.id),
+        createdAt: c.createdAt,
+      };
+    });
+
     return {
-      data,
-      meta: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-      },
+      data: mapped,
+      meta: { page, limit, total, pages: Math.ceil(total / limit) },
     };
   }
 
-  // ========================
   // DETALHES DE UM COSMÉTICO
-  // ========================
-  async findOne(id: string) {
-    return this.prisma.cosmetic.findUnique({ where: { id } });
+  async findOne(id: string, currentUserId?: string) {
+    const c = await this.prisma.cosmetic.findUnique({ where: { id } });
+    if (!c) return null;
+
+    const regular = c.regularPrice ?? null;
+    const final = c.finalPrice ?? null;
+    const isPromo = (final ?? c.price) < (regular ?? c.price);
+
+    let owned = false;
+    if (currentUserId) {
+      const p = await this.prisma.purchase.findFirst({
+        where: { cosmeticId: id, userId: currentUserId, returned: false },
+      });
+      owned = Boolean(p);
+    }
+
+    return {
+      id: c.id,
+      name: c.name,
+      description: c.description,
+      type: c.type,
+      rarity: c.rarity,
+      image: c.image,
+      price: c.price,
+      regularPrice: regular,
+      finalPrice: final,
+      isNew: Boolean(c.isNew),
+      onSale: Boolean(c.onSale),
+      isPromo,
+      owned,
+      createdAt: c.createdAt,
+    };
   }
 
-  // ========================
   // SINCRONIZAÇÃO REMOTA
-  // ========================
   async syncWithRemote() {
-    this.logger.log('Iniciando sincronização...');
+    this.logger.log('Iniciando sincronização com API externa...');
 
-    const useRemote = process.env.FORCE_REMOTE_SYNC === 'true';
-    let items: any[] = [];
+    const urlAll = `${this.apiBase}/cosmetics`;
+    const urlNew = `${this.apiBase}/cosmetics/new`;
+    const urlShop = `${this.apiBase}/shop`;
+
+    let allItems: any[] = [];
+    let newItems: any[] = [];
+    let shopItems: any[] = [];
 
     try {
-      if (useRemote) {
-        const res = await axios.get(`${this.apiBase}/cosmetics`);
-        if (res.data?.data && Array.isArray(res.data.data)) {
-          items = res.data.data.map((it: any) => ({
-            id: it.id,
-            name: it.name,
-            description: it.description || it.description?.plain || null,
-            type: it.type || it.type?.value || null,
-            rarity: it.rarity || it.rarity?.value || null,
-            image: it.images?.icon || it.images?.featured || null,
-            price: it.price ?? 800,
-            createdAt: it.added ? new Date(it.added) : new Date(),
-          }));
+      const [respAll, respNew, respShop] = await Promise.allSettled([
+        axios.get(urlAll, { timeout: 30_000 }),
+        axios.get(urlNew, { timeout: 30_000 }),
+        axios.get(urlShop, { timeout: 30_000 }),
+      ]);
+
+      // normalize respAll
+      if (respAll.status === 'fulfilled' && respAll.value?.data) {
+        const payload = respAll.value.data;
+        if (Array.isArray(payload.data)) allItems = payload.data;
+        else if (payload.data && typeof payload.data === 'object') {
+          if (Array.isArray(payload.data.br)) allItems = payload.data.br;
+          else if (Array.isArray(payload.data.all)) allItems = payload.data.all;
+          else {
+            for (const v of Object.values(payload.data)) {
+              if (Array.isArray(v)) {
+                allItems = v;
+                break;
+              }
+            }
+          }
+        }
+        if (!allItems.length && Array.isArray(payload)) allItems = payload;
+      }
+
+      // normalize respNew
+      if (respNew.status === 'fulfilled' && respNew.value?.data) {
+        const payload = respNew.value.data;
+        if (Array.isArray(payload.data)) newItems = payload.data;
+        else if (Array.isArray(payload)) newItems = payload;
+      }
+
+      // normalize respShop
+      if (respShop.status === 'fulfilled' && respShop.value?.data) {
+        const payload = respShop.value.data;
+        if (Array.isArray(payload.data)) shopItems = payload.data;
+        else if (payload.data && typeof payload.data === 'object') {
+          if (Array.isArray(payload.data.br)) shopItems = payload.data.br;
+          else if (Array.isArray(payload.data.all)) shopItems = payload.data.all;
+          else {
+            for (const v of Object.values(payload.data)) {
+              if (Array.isArray(v)) {
+                shopItems = v;
+                break;
+              }
+            }
+          }
+        }
+        if (!shopItems.length && Array.isArray(payload)) shopItems = payload;
+      }
+    } catch (err) {
+      this.logger.warn('Erro geral ao buscar API externa: ' + (err as Error).message);
+    }
+
+    // fallback to seed local
+    if (!allItems.length) {
+      const samplePath =
+        process.env.SAMPLE_DATA_PATH || path.join(__dirname, '../data/sample-cosmetics.json');
+      if (fs.existsSync(samplePath)) {
+        const seed = JSON.parse(fs.readFileSync(samplePath, 'utf8'));
+        allItems = Array.isArray(seed) ? seed : [];
+      }
+    }
+
+    // new set
+    const newSet = new Set<string>();
+    for (const it of newItems) {
+      const id = it?.id ?? it?.itemId ?? it?.offerId ?? it?.offer?.id ?? null;
+      if (id) newSet.add(id);
+    }
+
+    // shop map extraction with safe helpers
+    const shopMap = new Map<string, { regularPrice?: number; finalPrice?: number }>();
+
+    const safeExtractIdAndPrices = (obj: any) => {
+      if (!obj || typeof obj !== 'object') return null;
+      // common direct shape
+      if (obj.id) {
+        const regular = Number(obj.regularPrice ?? obj.price ?? obj.priceInVbucks ?? null);
+        const final = Number(obj.finalPrice ?? obj.price ?? null);
+        return { id: String(obj.id), regular: isNaN(regular) ? undefined : regular, final: isNaN(final) ? undefined : final };
+      }
+
+      // other shapes: offerId, itemId, nested item.id
+      const altId =
+        obj.offerId ??
+        obj.itemId ??
+        (obj.item && obj.item.id ? obj.item.id : undefined) ??
+        (obj.offer && obj.offer.id ? obj.offer.id : undefined) ??
+        (obj.id && obj.images && obj.images.icon ? obj.id : undefined);
+
+      if (altId) {
+        const regular = Number(obj.regularPrice ?? obj.price ?? null);
+        const final = Number(obj.finalPrice ?? obj.price ?? null);
+        return { id: String(altId), regular: isNaN(regular) ? undefined : regular, final: isNaN(final) ? undefined : final };
+      }
+
+      // try inside children entry
+      if (Array.isArray(obj.entries) && obj.entries.length) {
+        for (const e of obj.entries) {
+          const ex = safeExtractIdAndPrices(e);
+          if (ex) return ex;
         }
       }
-    } catch {
-      this.logger.warn('Falha ao buscar API remota — fallback para seed local.');
-    }
 
-    if (!items.length) {
-      const samplePath =
-        process.env.SAMPLE_DATA_PATH ||
-        path.join(__dirname, '../data/sample-cosmetics.json');
+      return null;
+    };
 
-      if (fs.existsSync(samplePath)) {
-        items = JSON.parse(fs.readFileSync(samplePath, 'utf-8')).map((it: any) => ({
-          id: it.id,
-          name: it.name,
-          description: it.description || null,
-          type: it.type || null,
-          rarity: it.rarity || null,
-          image: it.image || null,
-          price: it.price ?? 800,
-          createdAt: it.createdAt ? new Date(it.createdAt) : new Date(),
-        }));
+    for (const entry of shopItems) {
+      if (!entry) continue;
+      if (Array.isArray(entry.items)) {
+        for (const it of entry.items) {
+          const ex = safeExtractIdAndPrices(it);
+          if (ex) shopMap.set(ex.id, { regularPrice: ex.regular, finalPrice: ex.final });
+        }
+      } else if (Array.isArray(entry.entries)) {
+        for (const it of entry.entries) {
+          const ex = safeExtractIdAndPrices(it);
+          if (ex) shopMap.set(ex.id, { regularPrice: ex.regular, finalPrice: ex.final });
+        }
+      } else {
+        const ex = safeExtractIdAndPrices(entry);
+        if (ex) shopMap.set(ex.id, { regularPrice: ex.regular, finalPrice: ex.final });
       }
     }
 
+    // Upsert items
     let updated = 0;
-    for (const it of items) {
+    for (const it of allItems) {
       try {
+        const id = it?.id ?? it?.itemId ?? it?.offerId ?? (it?.item && it.item.id ? it.item.id : undefined);
+        if (!id) continue;
+
+        const name = it.name ?? it.displayName ?? it.title ?? 'Unknown';
+        const description = it.description ?? it.text ?? null;
+        const rarity = it?.rarity?.value ?? it?.rarity ?? null;
+        const type = it?.type?.value ?? it?.type ?? null;
+        const images = it.images ?? it.image ?? {};
+        const image = images.icon ?? images.featured ?? images.smallIcon ?? (it.image ?? null);
+
+        // createdAt detection
+        let createdAt = new Date();
+        if (it.added) {
+          const d = new Date(it.added);
+          if (!isNaN(d.getTime())) createdAt = d;
+        } else if (it.firstSeen) {
+          const d = new Date(it.firstSeen);
+          if (!isNaN(d.getTime())) createdAt = d;
+        }
+
+        const basePrice = Number(it.price ?? it.priceInVbucks ?? it.cost ?? null);
+        const price = !isNaN(basePrice) ? Math.round(basePrice) : 800;
+
+        const shopEntry = shopMap.get(id);
+        const regularPrice = shopEntry?.regularPrice ?? null;
+        const finalPrice = shopEntry?.finalPrice ?? null;
+        const onSale = !!shopEntry;
+        const isNew = newSet.has(id);
+
         await this.prisma.cosmetic.upsert({
-          where: { id: it.id },
-          update: it,
-          create: it,
+          where: { id },
+          create: {
+            id,
+            name,
+            description,
+            type,
+            rarity,
+            image,
+            price,
+            regularPrice: regularPrice ?? undefined,
+            finalPrice: finalPrice ?? undefined,
+            isNew,
+            onSale,
+            createdAt,
+          },
+          update: {
+            name,
+            description,
+            type,
+            rarity,
+            image,
+            price,
+            regularPrice: regularPrice ?? undefined,
+            finalPrice: finalPrice ?? undefined,
+            isNew,
+            onSale,
+          },
         });
+
         updated++;
-      } catch (err) {
-        this.logger.debug('Erro ao sincronizar item: ' + err.message);
+      } catch (err: any) {
+        this.logger.debug('Erro ao sincronizar item: ' + (err?.message ?? String(err)));
       }
     }
 
-    return { imported: items.length, updated };
+    this.logger.log(`Sincronização concluída. Processed ${allItems.length}, upserted ${updated}`);
+    return { imported: allItems.length, updated };
   }
 }

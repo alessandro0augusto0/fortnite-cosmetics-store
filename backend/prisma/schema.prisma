@@ -24,8 +24,12 @@ model Cosmetic {
   type        String?
   rarity      String?
   image       String?
-  price       Int          @default(800)
-  createdAt   DateTime     @default(now())
+  price       Int         @default(800)      // fallback price
+  regularPrice Int?                           // price in shop (regular)
+  finalPrice   Int?                           // final price if discounted
+  isNew       Boolean     @default(false)     // flagged from /cosmetics/new
+  onSale      Boolean     @default(false)     // flagged if present in /shop
+  createdAt   DateTime    @default(now())
   purchases   Purchase[]
 }
 
@@ -33,12 +37,11 @@ model Purchase {
   id            String   @id @default(uuid())
   userId        String
   cosmeticId    String
-  cosmeticName  String   // ✅ novo campo
-  price         Int      // ✅ novo campo
+  cosmeticName  String
+  price         Int
   createdAt     DateTime @default(now())
   returned      Boolean  @default(false)
 
   user     User     @relation(fields: [userId], references: [id])
   cosmetic Cosmetic @relation(fields: [cosmeticId], references: [id])
 }
-
