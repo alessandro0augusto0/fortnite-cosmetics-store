@@ -173,6 +173,22 @@ Veja `BACKLOG.md` para acompanhar essas entregas.
 
 ---
 
+### ⚠️ Nota sobre a Primeira Execução
+
+O sistema tenta sincronizar automaticamente com a API do Fortnite ao iniciar.
+Devido ao tempo de inicialização do banco de dados na primeira vez, essa sincronização automática pode falhar silenciosamente.
+
+**Se o catálogo aparecer vazio:**
+Aguarde 10 segundos e execute o comando de sincronização manual:
+
+```bash
+# Linux/Mac
+curl -X POST http://localhost:3000/cosmetics/sync
+
+# Windows (PowerShell)
+Invoke-RestMethod -Method Post -Uri "http://localhost:3000/cosmetics/sync"
+```
+
 ## 💬 Suporte
 
 Abra uma issue ou procure **@alessandro0augusto0** quando precisar. Contribuições são muito bem-vindas! 😉

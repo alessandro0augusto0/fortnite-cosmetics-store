@@ -71,86 +71,110 @@ export function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <header className="max-w-6xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
-        <h1 className="text-4xl md:text-5xl font-black text-blue-600 tracking-tight">
-          SISTEMA ESO <span className="text-gray-800 text-2xl">Fortnite Market</span>
-        </h1>
-        <div className="relative w-full md:w-96">
-          <Search className="absolute left-3 top-3 text-gray-400" size={20} />
-          <input
-            type="text"
-            placeholder="Buscar cosmético..."
-            className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-          />
+    <div className="min-h-screen bg-gray-100 py-10">
+      <header className="mx-auto mb-10 max-w-6xl px-6">
+        <div className="rounded-3xl bg-gradient-to-r from-slate-900 via-blue-900 to-blue-700 p-8 text-white shadow-xl">
+          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[6px] text-blue-200">Fortnite Market</p>
+              <h1 className="mt-3 text-4xl font-black leading-tight md:text-5xl">Descubra cosméticos lendários com curadoria ESO</h1>
+              <p className="mt-3 max-w-xl text-sm text-blue-100">Filtros avançados, estoque atualizado em tempo real e experiência premium inspirada em lojas AAA do mercado gamer.</p>
+            </div>
+            <div className="w-full max-w-md rounded-2xl bg-white/10 p-1 shadow-inner">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-blue-300" size={18} />
+                <input
+                  type="text"
+                  placeholder="Buscar por nome, raridade ou tipo..."
+                  className="w-full rounded-xl border border-transparent bg-white/90 py-3 pl-12 pr-4 text-base font-medium text-gray-900 placeholder:text-gray-500 focus:border-blue-300 focus:outline-none"
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </div>
+            </div>
+          </div>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto">
-        <div className="bg-white p-4 rounded-lg shadow-sm mb-6 flex flex-wrap gap-4 items-center">
-          <div className="flex items-center gap-2 font-bold text-gray-600">
-            <Filter size={18} /> Filtros:
+      <main className="mx-auto max-w-6xl px-6">
+        <section className="mb-8 grid gap-4 rounded-3xl bg-white p-6 shadow-lg lg:grid-cols-[auto_1fr] lg:items-center">
+          <div className="flex items-center gap-3 text-lg font-semibold text-gray-800">
+            <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+              <Filter size={20} />
+            </span>
+            Filtros inteligentes
           </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <select
+              name="type"
+              onChange={handleFilterChange}
+              value={filters.type}
+              className="h-11 rounded-2xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700 shadow-sm focus:border-blue-500 focus:outline-none"
+            >
+              <option value="">Todos Tipos</option>
+              <option value="outfit">Trajes</option>
+              <option value="backpack">Mochilas</option>
+              <option value="pickaxe">Picaretas</option>
+              <option value="glider">Planadores</option>
+            </select>
 
-          <select name="type" onChange={handleFilterChange} className="border p-2 rounded" value={filters.type}>
-            <option value="">Todos Tipos</option>
-            <option value="outfit">Trajes</option>
-            <option value="backpack">Mochilas</option>
-            <option value="pickaxe">Picaretas</option>
-            <option value="glider">Planadores</option>
-          </select>
+            <select
+              name="rarity"
+              onChange={handleFilterChange}
+              value={filters.rarity}
+              className="h-11 rounded-2xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700 shadow-sm focus:border-purple-500 focus:outline-none"
+            >
+              <option value="">Todas Raridades</option>
+              <option value="common">Comum</option>
+              <option value="rare">Raro</option>
+              <option value="epic">Épico</option>
+              <option value="legendary">Lendário</option>
+            </select>
 
-          <select name="rarity" onChange={handleFilterChange} className="border p-2 rounded" value={filters.rarity}>
-            <option value="">Todas Raridades</option>
-            <option value="common">Comum</option>
-            <option value="rare">Raro</option>
-            <option value="epic">Épico</option>
-            <option value="legendary">Lendário</option>
-          </select>
+            <label className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm">
+              <input type="checkbox" name="isOnSale" checked={filters.isOnSale} onChange={handleFilterChange} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+              À venda agora
+            </label>
 
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <input type="checkbox" name="isOnSale" checked={filters.isOnSale} onChange={handleFilterChange} className="w-4 h-4 accent-blue-600" />
-            À venda
-          </label>
-
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <input type="checkbox" name="isNew" checked={filters.isNew} onChange={handleFilterChange} className="w-4 h-4 accent-blue-600" />
-            Novidades
-          </label>
-        </div>
+            <label className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm">
+              <input type="checkbox" name="isNew" checked={filters.isNew} onChange={handleFilterChange} className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500" />
+              Novidades
+            </label>
+          </div>
+        </section>
 
         {isLoading ? (
-          <div className="text-center py-20 text-gray-500">Carregando catálogo...</div>
+          <div className="rounded-3xl bg-white py-20 text-center text-gray-500 shadow">
+            Carregando catálogo premium...
+          </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {data?.data?.map((item: Cosmetic) => (
                 <CosmeticCard key={item.id} item={item} />
               ))}
             </div>
 
-            <div className="flex justify-center gap-4 mt-10">
+            <div className="mt-12 flex flex-wrap items-center justify-center gap-4">
               <button
                 type="button"
                 disabled={page === 1}
                 onClick={() => setPage((old) => Math.max(old - 1, 1))}
-                className="px-4 py-2 bg-white border rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                className="inline-flex items-center rounded-full border border-gray-300 bg-white px-6 py-3 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-blue-500 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Anterior
               </button>
-              <span className="px-4 py-2 font-bold">
-                Página {page} de {data?.meta?.lastPage || 1}
+              <span className="text-sm font-semibold text-gray-600">
+                Página <span className="text-gray-900">{page}</span> de {data?.meta?.lastPage || 1}
               </span>
               <button
                 type="button"
                 disabled={page >= (data?.meta?.lastPage || 1)}
                 onClick={() => setPage((old) => old + 1)}
-                className="px-4 py-2 bg-white border rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                className="inline-flex items-center rounded-full border border-gray-300 bg-white px-6 py-3 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-blue-500 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Próxima
               </button>
