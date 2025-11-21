@@ -1,8 +1,6 @@
- Evite retirar# 🎮 Fortnite Cosmetics Store
+# 🎮 Fortnite Cosmetics Store
 
 Aplicação full-stack (NestJS + React) que sincroniza o catálogo público do Fortnite e permite simular compras de cosméticos usando V-Bucks. Todo o ambiente pode ser iniciado com **Docker Compose** e também há instruções para rodar cada serviço manualmente.
-
-- 🌐 **Demo hospedada:** [fortnite-cosmetics-store.vercel.app](https://fortnite-cosmetics-store.vercel.app)
 
 ---
 
@@ -35,8 +33,8 @@ docker-compose.yml  Orquestração local
 | Cadastro/Login com bônus de 10 000 V-Bucks | ✅ |
 | Compra/devolução com saldo e histórico | ✅ |
 | Sincronização periódica de `/cosmetics`, `/cosmetics/new`, `/shop` | ✅ (cron + endpoint manual) |
-| Inventário e histórico disponíveis via API | ✅ (Dashboard SPA + endpoints) |
-| Página pública de usuários/perfis | ✅ (`/users` e `/users/:id` com UI pública) |
+| Inventário e histórico disponíveis via API | ✅ (frontend dedicado em andamento) |
+| Página pública de usuários/perfis | 🔄 Backend pronto (`GET /users`, `/users/:id`); UI pendente |
 | Filtro por data/promoção e bundles | 🔜 listado no BACKLOG |
 
 > Consulte `BACKLOG.md` para saber o que falta (bundles, página de detalhes, filtros de data/promoção, etc.).
