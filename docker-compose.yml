@@ -29,7 +29,8 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://admin:admin@postgres:5432/sistema_eso_db?schema=public
+      # DATABASE_URL: postgresql://admin:admin@postgres:5432/sistema_eso_db?schema=public
+      DATABASE_URL: postgresql://db35795f592fd45937e5ce931189f63b99b7d5b9f5f0a18e14d88b22411eb49f:sk_aEmli0fDpHPHfhtY4STLZ@db.prisma.io:5432/postgres?schema=public&sslmode=require
       JWT_SECRET: supersecret_eso_key
       PORT: 3000
       FORTNITE_API_BASE: https://fortnite-api.com/v2
