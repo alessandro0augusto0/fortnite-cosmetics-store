@@ -7,6 +7,9 @@ const api = axios.create({
   timeout: 15000,
 });
 
+// ============================================
+// INTERCEPTORS (TOKEN)
+// ============================================
 api.interceptors.request.use((config) => {
   const token = getToken();
   if (token) {
@@ -26,34 +29,62 @@ api.interceptors.response.use(
   }
 );
 
-// ==============================
+// ============================================
 // PERFIL (Auth)
-// ==============================
+// ============================================
 export async function fetchProfile() {
   try {
     const res = await api.get('/auth/me');
-    return res.data; // { id, email, vbucks, createdAt }
+    return res.data;
   } catch (err: any) {
     if (err?.response?.status === 401) {
       clearToken();
       return null;
     }
-    console.error('Erro ao buscar perfil:', err.message || err);
+    console.error('Erro ao buscar perfil:', err.message);
     return null;
   }
 }
 
-// ==============================
+// ============================================
+// COSMETICS (NOVOS MÉTODOS)
+// ============================================
+
+// GET /cosmetics/:id — Detalhes
+export async function getCosmeticById(id: string) {
+  const res = await api.get(`/cosmetics/${id}`);
+  return res.data;
+}
+
+// GET /cosmetics/new — novos
+export async function getNewCosmetics() {
+  const res = await api.get('/cosmetics/new');
+  return res.data;
+}
+
+// GET /shop — itens à venda (quando implementarmos)
+export async function getShopItems() {
+  const res = await api.get('/shop');
+  return res.data;
+}
+
+// ============================================
 // SHOP (Compras)
-// ==============================
+// ============================================
 export async function buyCosmetic(cosmeticId: string, cosmeticName: string, price: number) {
   const res = await api.post('/shop/buy', { cosmeticId, cosmeticName, price });
-  return res.data; // { message, newBalance }
+  return res.data;
 }
 
 export async function getPurchases() {
   const res = await api.get('/shop/purchases');
-  return res.data; // array de compras
+  return res.data;
+}
+
+// POST /shop/return
+export async function returnCosmetic(purchaseId: string) {
+  const res = await api.post('/shop/return', { purchaseId });
+  return res.data;
 }
 
 export default api;

@@ -1,40 +1,55 @@
-import { Controller, Get, Post, Res, HttpStatus } from '@nestjs/common';
-import { CosmeticsService } from './cosmetics.service';
+import { Controller, Get, Query, Param, NotFoundException, Res, HttpStatus, Post } from '@nestjs/common';
+import { CosmeticsService, FindAllParams } from './cosmetics.service';
 
 @Controller('cosmetics')
 export class CosmeticsController {
   constructor(private readonly cosmeticsService: CosmeticsService) {}
 
+  // =================================================
+  // LISTAGEM COM FILTROS E PAGINAÇÃO
+  // =================================================
   @Get()
-  async findAll(@Res() res) {
-    const items = await this.cosmeticsService.findAll();
-    return res.status(HttpStatus.OK).json(items);
+  async findAll(
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+    @Query('q') q?: string,
+    @Query('type') type?: string,
+    @Query('rarity') rarity?: string,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('sortOrder') sortOrder?: 'asc' | 'desc',
+  ) {
+    const params: FindAllParams = {
+      page: Number(page) || 1,
+      limit: Number(limit) || 20,
+      q,
+      type,
+      rarity,
+      dateFrom,
+      dateTo,
+      sortBy,
+      sortOrder,
+    };
+
+    return this.cosmeticsService.findAll(params);
   }
 
-  @Get('new')
-  async findNew(@Res() res) {
-    const items = await this.cosmeticsService.findNew();
-    return res.status(HttpStatus.OK).json(items);
+  // =========================
+  // DETALHES DO COSMÉTICO
+  // =========================
+  @Get(':id')
+  async findOne(@Param('id') id: string) {
+    const item = await this.cosmeticsService.findOne(id);
+    if (!item) throw new NotFoundException('Cosmético não encontrado');
+    return item;
   }
 
-  /**
-   * Rota manual para sincronizar com a API externa.
-   * Método: POST /cosmetics/sync
-   * Use para forçar atualização imediata.
-   */
+  // =========================
+  // ROTA MANUAL DE SINCRONIZAÇÃO
+  // =========================
   @Post('sync')
-  async sync(@Res() res) {
-    try {
-      const result = await this.cosmeticsService.syncWithRemote();
-      return res.status(HttpStatus.OK).json({
-        message: 'Sincronização concluída',
-        result,
-      });
-    } catch (err) {
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        message: 'Falha na sincronização',
-        error: (err as Error).message,
-      });
-    }
+  async sync() {
+    return this.cosmeticsService.syncWithRemote();
   }
 }

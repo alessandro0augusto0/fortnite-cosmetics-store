@@ -1,5 +1,6 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import CosmeticsPage from './pages/CosmeticsPage';
+import CosmeticDetailsPage from './pages/CosmeticDetailsPage'; // <--- NOVO
 import AuthPage from './pages/AuthPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import Header from "./components/Header";
@@ -36,6 +37,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home />} />
 
+          {/* LISTAGEM DE COSMÉTICOS */}
           <Route
             path="/cosmetics"
             element={
@@ -45,6 +47,17 @@ export default function App() {
             }
           />
 
+          {/* DETALHES DO COSMÉTICO */}
+          <Route
+            path="/cosmetic/:id"
+            element={
+              <ProtectedRoute>
+                <CosmeticDetailsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* LOGIN */}
           <Route path="/auth" element={<AuthPage />} />
         </Routes>
       </main>

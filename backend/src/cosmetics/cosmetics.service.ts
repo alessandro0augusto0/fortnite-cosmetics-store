@@ -1,6 +1,20 @@
 import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import { PrismaService } from '../prisma/prisma.service';
+import * as fs from 'fs';
+import * as path from 'path';
+
+export type FindAllParams = {
+  page?: number;
+  limit?: number;
+  q?: string;
+  type?: string;
+  rarity?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+};
 
 @Injectable()
 export class CosmeticsService {
@@ -8,141 +22,143 @@ export class CosmeticsService {
   private readonly apiBase: string;
 
   constructor(private readonly prisma: PrismaService) {
-    // Lê var de ambiente ou usa padrão
     this.apiBase = process.env.FORTNITE_API_BASE || 'https://fortnite-api.com/v2';
   }
 
-  // Retorna lista do DB (existente)
-  async findAll() {
-    return this.prisma.cosmetic.findMany({ orderBy: { createdAt: 'desc' } });
-  }
+  // ============================================
+  // LISTAGEM COM PAGINAÇÃO + FILTROS + ORDENAÇÃO
+  // ============================================
+  async findAll(params: FindAllParams = {}) {
+    const page = Math.max(1, Number(params.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(params.limit) || 20));
+    const skip = (page - 1) * limit;
 
-  // Endpoint público /cosmetics/new (se quiser manter)
-  async findNew() {
-    return this.prisma.cosmetic.findMany({
-      where: {},
-      orderBy: { createdAt: 'desc' },
-      take: 20,
-    });
-  }
+    const where: any = {};
 
-  /**
-   * Sincroniza cosméticos com a API externa.
-   * Faz upsert por id (item.id da API).
-   */
-  async syncWithRemote(): Promise<{ imported: number; updated: number }> {
-    const url = `${this.apiBase}/cosmetics`;
-    this.logger.log(`Sincronizando cosméticos a partir de ${url} ...`);
+    if (params.q) {
+      const q = params.q.trim();
+      where.OR = [
+        { name: { contains: q, mode: 'insensitive' } },
+        { description: { contains: q, mode: 'insensitive' } },
+      ];
+    }
 
-    // Buscar da API externa
-    const resp = await axios.get(url, {
-      timeout: 30_000,
-      responseType: 'json',
-      headers: {
-        Accept: 'application/json',
-        // Se precisar de API KEY:
-        // 'Authorization': `Bearer ${process.env.FORTNITE_API_KEY || ''}`,
+    if (params.type) where.type = params.type;
+    if (params.rarity) where.rarity = params.rarity;
+
+    if (params.dateFrom || params.dateTo) {
+      where.createdAt = {};
+      if (params.dateFrom) {
+        const d = new Date(params.dateFrom);
+        if (!isNaN(d.getTime())) where.createdAt.gte = d;
+      }
+      if (params.dateTo) {
+        const d = new Date(params.dateTo);
+        if (!isNaN(d.getTime())) where.createdAt.lte = d;
+      }
+      if (Object.keys(where.createdAt).length === 0) delete where.createdAt;
+    }
+
+    const orderBy: any = {};
+    if (params.sortBy) {
+      const allowed = ['createdAt', 'price', 'name'];
+      if (allowed.includes(params.sortBy)) {
+        orderBy[params.sortBy] = params.sortOrder === 'asc' ? 'asc' : 'desc';
+      }
+    } else {
+      orderBy.createdAt = 'desc'; // padrão
+    }
+
+    const [total, data] = await Promise.all([
+      this.prisma.cosmetic.count({ where }),
+      this.prisma.cosmetic.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy,
+      }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
       },
-    });
+    };
+  }
 
-    // Extrair array de itens com tolerância a formatos diferentes
+  // ========================
+  // DETALHES DE UM COSMÉTICO
+  // ========================
+  async findOne(id: string) {
+    return this.prisma.cosmetic.findUnique({ where: { id } });
+  }
+
+  // ========================
+  // SINCRONIZAÇÃO REMOTA
+  // ========================
+  async syncWithRemote() {
+    this.logger.log('Iniciando sincronização...');
+
+    const useRemote = process.env.FORCE_REMOTE_SYNC === 'true';
     let items: any[] = [];
-    if (!resp?.data) throw new Error('Resposta inválida da API externa');
-    const payload = resp.data;
 
-    // payload.data pode ser objeto com chaves regionais (br) ou array
-    if (Array.isArray(payload?.data)) {
-      items = payload.data;
-    } else if (payload?.data && typeof payload.data === 'object') {
-      // se houver chave 'br' preferimos; depois 'all'; depois buscamos arrays dentro do objeto
-      if (Array.isArray(payload.data.br)) items = payload.data.br;
-      else if (Array.isArray(payload.data.all)) items = payload.data.all;
-      else {
-        // tentar encontrar o primeiro valor que seja array
-        for (const v of Object.values(payload.data)) {
-          if (Array.isArray(v)) {
-            items = v;
-            break;
-          }
+    try {
+      if (useRemote) {
+        const res = await axios.get(`${this.apiBase}/cosmetics`);
+        if (res.data?.data && Array.isArray(res.data.data)) {
+          items = res.data.data.map((it: any) => ({
+            id: it.id,
+            name: it.name,
+            description: it.description || it.description?.plain || null,
+            type: it.type || it.type?.value || null,
+            rarity: it.rarity || it.rarity?.value || null,
+            image: it.images?.icon || it.images?.featured || null,
+            price: it.price ?? 800,
+            createdAt: it.added ? new Date(it.added) : new Date(),
+          }));
         }
       }
+    } catch {
+      this.logger.warn('Falha ao buscar API remota — fallback para seed local.');
     }
 
-    // fallback: se payload for diretamente um array
-    if (!items.length && Array.isArray(payload)) items = payload;
+    if (!items.length) {
+      const samplePath =
+        process.env.SAMPLE_DATA_PATH ||
+        path.join(__dirname, '../data/sample-cosmetics.json');
 
-    if (!items || items.length === 0) {
-      this.logger.warn('Nenhum item encontrado na API para sincronizar.');
-      return { imported: 0, updated: 0 };
-    }
-
-    let imported = 0;
-    let updated = 0;
-
-    // Processa sequencialmente para não exagerar no DB/limite (simples e robusto)
-    for (const it of items) {
-      try {
-        // Normalizar campos
-        const id = it.id || it.itemId || it.offerId;
-        if (!id) continue;
-
-        const name = it.name || it.displayName || 'Unknown';
-        const descriptionRaw = it.description === 'null' ? null : it.description ?? it.text ?? null;
-        const description = descriptionRaw === 'null' ? null : descriptionRaw;
-        const rarity = it.rarity?.value ?? it.rarity?.displayValue ?? it.rarity ?? null;
-        const type = it.type?.value ?? it.type?.displayValue ?? it.type ?? null;
-
-        // Preferências de imagem: icon -> smallIcon -> featured -> imagens padrão
-        const images = it.images ?? it.image ?? {};
-        const image = images.icon || images.smallIcon || images.featured || it.image || null;
-
-        // preço: se vier do objeto shop / entry, tente extrair
-        let price: number | undefined = undefined;
-        if (it.price != null) price = Number(it.price);
-        if (!price && it.finalPrice != null) price = Number(it.finalPrice);
-        if (!price && it.regularPrice != null) price = Number(it.regularPrice);
-
-        // upsert no DB usando Prisma
-        const upsert = await this.prisma.cosmetic.upsert({
-          where: { id },
-          create: {
-            id,
-            name,
-            description,
-            type,
-            rarity,
-            image,
-            price: price ?? 800,
-          },
-          update: {
-            name,
-            description,
-            type,
-            rarity,
-            image,
-            price: price ?? 800,
-          },
-        });
-
-        // Contagem simples: se createdAt igual agora pode ser import, mas Prisma upsert não indica; usamos heurística:
-        // Se o registro foi criado no mesmo segundo (improvável) ignoramos; vamos apenas contar todos como updated/imported via consulta simples:
-        // Para simplicidade: se o upsert retornou e havia registro antes? Não sabemos, então incrementamos updated (defensivo)
-        updated += 1;
-      } catch (err) {
-        this.logger.warn(`Erro ao upsert item: ${(err as Error).message}`);
+      if (fs.existsSync(samplePath)) {
+        items = JSON.parse(fs.readFileSync(samplePath, 'utf-8')).map((it: any) => ({
+          id: it.id,
+          name: it.name,
+          description: it.description || null,
+          type: it.type || null,
+          rarity: it.rarity || null,
+          image: it.image || null,
+          price: it.price ?? 800,
+          createdAt: it.createdAt ? new Date(it.createdAt) : new Date(),
+        }));
       }
     }
 
-    // Uma forma simples de estimar importados: total processed
-    imported = items.length;
+    let updated = 0;
+    for (const it of items) {
+      try {
+        await this.prisma.cosmetic.upsert({
+          where: { id: it.id },
+          update: it,
+          create: it,
+        });
+        updated++;
+      } catch (err) {
+        this.logger.debug('Erro ao sincronizar item: ' + err.message);
+      }
+    }
 
-    this.logger.log(`Sincronização concluída: processed=${items.length} updated=${updated}`);
-    return { imported, updated };
-  }
-
-  // Método usado no seed local original — mantenha se necessário
-  async ensureCosmeticsSeeded(samplePath: string) {
-    // método original do projeto (se houver) pode ficar aqui
-    // não sobrescrevi para não quebrar seed existente
+    return { imported: items.length, updated };
   }
 }

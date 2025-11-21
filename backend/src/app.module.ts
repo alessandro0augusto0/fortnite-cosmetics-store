@@ -6,8 +6,8 @@ import { AuthModule } from './auth/auth.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
-// IMPORTANTE: importe a SyncTask
 import { SyncTask } from './tasks/sync.task';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -15,11 +15,12 @@ import { SyncTask } from './tasks/sync.task';
     CosmeticsModule,
     ShopModule,
     AuthModule,
+    UsersModule, // <- Módulo de usuários funcionando
   ],
   controllers: [AppController],
   providers: [
     AppService,
-    SyncTask, // <---- AQUI REGISTRA O CRON
+    SyncTask,
   ],
 })
 export class AppModule {}
