@@ -1,79 +1,62 @@
 import { Controller, Get, Query, Param, NotFoundException, Post, Req } from '@nestjs/common';
-import { CosmeticsService, FindAllParams } from './cosmetics.service';
-import * as jwt from 'jsonwebtoken';
 import type { Request } from 'express';
+import * as jwt from 'jsonwebtoken';
+import { CosmeticsService, FindAllParams } from './cosmetics.service';
+
+type ListQuery = {
+  page?: string;
+  search?: string;
+  q?: string;
+  type?: string;
+  rarity?: string;
+  isNew?: string;
+  isOnSale?: string;
+};
 
 @Controller('cosmetics')
 export class CosmeticsController {
+  private readonly jwtSecret = process.env.JWT_SECRET || 'supersecret_eso_key';
+
   constructor(private readonly cosmeticsService: CosmeticsService) {}
 
-  // LISTAGEM COM FILTROS E PAGINAÇÃO (public)
   @Get()
-  async findAll(
-    @Req() req: Request,
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
-    @Query('q') q?: string,
-    @Query('type') type?: string,
-    @Query('rarity') rarity?: string,
-    @Query('dateFrom') dateFrom?: string,
-    @Query('dateTo') dateTo?: string,
-    @Query('sortBy') sortBy?: string,
-    @Query('sortOrder') sortOrder?: 'asc' | 'desc',
-  ) {
+  async findAll(@Req() req: Request, @Query() query: ListQuery) {
     const params: FindAllParams = {
-      page: Number(page) || 1,
-      limit: Number(limit) || 20,
-      q,
-      type,
-      rarity,
-      dateFrom,
-      dateTo,
-      sortBy,
-      sortOrder,
+      page: query.page ? Number(query.page) : 1,
+      search: query.search ?? query.q,
+      type: query.type,
+      rarity: query.rarity,
+      isNew: query.isNew,
+      isOnSale: query.isOnSale,
     };
 
-    // Try to extract user id from Authorization header (if provided)
-    let currentUserId: string | undefined = undefined;
-    try {
-      const auth = req.headers['authorization'] as string | undefined;
-      if (auth && auth.startsWith('Bearer ')) {
-        const token = auth.split(' ')[1];
-        const secret = process.env.JWT_SECRET || 'supersegredo123';
-        const decoded = jwt.verify(token, secret) as any;
-        if (decoded?.sub) currentUserId = decoded.sub;
-      }
-    } catch (e) {
-      // ignore invalid token — user will be considered anonymous
-    }
-
-    return this.cosmeticsService.findAll(params, currentUserId);
+    return this.cosmeticsService.findAll(params, this.extractUserId(req));
   }
 
-  // DETALHES DO COSMÉTICO
   @Get(':id')
   async findOne(@Req() req: Request, @Param('id') id: string) {
-    let currentUserId: string | undefined = undefined;
-    try {
-      const auth = req.headers['authorization'] as string | undefined;
-      if (auth && auth.startsWith('Bearer ')) {
-        const token = auth.split(' ')[1];
-        const secret = process.env.JWT_SECRET || 'supersegredo123';
-        const decoded = jwt.verify(token, secret) as any;
-        if (decoded?.sub) currentUserId = decoded.sub;
-      }
-    } catch {
-      // ignore
+    const item = await this.cosmeticsService.findOne(id, this.extractUserId(req));
+    if (!item) {
+      throw new NotFoundException('Cosmético não encontrado');
     }
-
-    const item = await this.cosmeticsService.findOne(id, currentUserId);
-    if (!item) throw new NotFoundException('Cosmético não encontrado');
     return item;
   }
 
-  // ROTA MANUAL DE SINCRONIZAÇÃO
   @Post('sync')
   async sync() {
     return this.cosmeticsService.syncWithRemote();
+  }
+
+  private extractUserId(req: Request): string | undefined {
+    const auth = req.headers.authorization;
+    if (!auth?.startsWith('Bearer ')) return undefined;
+
+    try {
+      const token = auth.split(' ')[1];
+      const decoded = jwt.verify(token, this.jwtSecret) as { sub?: string; id?: string };
+      return decoded.sub ?? decoded.id;
+    } catch {
+      return undefined;
+    }
   }
 }

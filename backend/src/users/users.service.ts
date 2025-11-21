@@ -56,12 +56,12 @@ export class UsersService {
     const skip = (page - 1) * limit;
 
     const [total, purchases] = await Promise.all([
-      this.prisma.purchase.count({ where: { userId: id } }),
-      this.prisma.purchase.findMany({
+      this.prisma.transaction.count({ where: { userId: id } }),
+      this.prisma.transaction.findMany({
         where: { userId: id },
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { date: 'desc' },
         include: {
           cosmetic: true,
         },

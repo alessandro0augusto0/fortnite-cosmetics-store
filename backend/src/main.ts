@@ -9,7 +9,7 @@ async function bootstrap() {
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
   });
 
-  const port = process.env.PORT ?? 4000;
+  const port = process.env.PORT ?? 3000;
   await app.listen(port);
   console.log(`🚀 Backend rodando em http://localhost:${port}`);
 }

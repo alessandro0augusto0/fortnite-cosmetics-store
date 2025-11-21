@@ -1,143 +1,74 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { toast } from 'react-hot-toast';
-import api, { fetchProfile } from '../lib/api';
-import { 
-  getToken, 
-  setToken as storeToken, 
-  clearToken as removeToken, 
-  getUserEmail 
-} from '../lib/auth';
+import { createContext, useState, useEffect, useContext } from 'react';
+import type { ReactNode } from 'react';
+import { api } from '../services/api';
 
-type UserProfile = {
+interface UserItem {
+  id: string;
+  cosmeticId: string;
+  cosmetic?: any;
+}
+
+interface User {
   id: string;
   email: string;
   vbucks: number;
-  createdAt?: string;
-} | null;
+  items?: UserItem[];
+}
 
-type AuthContextValue = {
-  token: string | null;
-  profile: UserProfile;
-  vbucks: number | null;
-  loading: boolean;
-  login: (token: string) => Promise<void>;
-  logout: () => void;
-  refreshProfile: () => Promise<void>;
-  setVbucks: (n: number) => void;
-};
+interface AuthContextData {
+  user: User | null;
+  signIn: (token: string, user: User) => void;
+  signOut: () => void;
+  refreshUser: () => Promise<void>;
+  isAuthenticated: boolean;
+}
 
-export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+const AuthContext = createContext<AuthContextData>({} as AuthContextData);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [token, setToken] = useState<string | null>(() => getToken() ?? null);
-  const [profile, setProfile] = useState<UserProfile>(null);
-  const [vbucks, setVbucksState] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
 
-  /**
-   * Carrega o perfil quando o app inicia e quando o token é alterado
-   */
-  async function load() {
-    setLoading(true);
+  const signOut = () => {
+    localStorage.removeItem('eso_token');
+    localStorage.removeItem('eso_user');
+    delete api.defaults.headers.common.Authorization;
+    setUser(null);
+    window.location.href = '/';
+  };
 
-    const stored = getToken();
-    if (!stored) {
-      setToken(null);
-      setProfile(null);
-      setVbucksState(null);
-      setLoading(false);
-      return;
-    }
-
-    setToken(stored);
-
+  const refreshUser = async () => {
     try {
-      const p = await fetchProfile();
-      if (p) {
-        setProfile(p);
-        setVbucksState(p.vbucks ?? null);
-      } else {
-        // fallback mínimo caso o token não traga perfil
-        setProfile({ id: '', email: getUserEmail() ?? '', vbucks: 0 });
-      }
-    } catch (e) {
-      console.error('Erro ao buscar perfil no init:', e);
-      setProfile(null);
-      setVbucksState(null);
-    } finally {
-      setLoading(false);
+      const response = await api.get('/me');
+      setUser(response.data);
+      localStorage.setItem('eso_user', JSON.stringify(response.data));
+    } catch (error) {
+      console.error('Failed to refresh user', error);
+      signOut();
     }
-  }
+  };
 
   useEffect(() => {
-    load();
+    const token = localStorage.getItem('eso_token');
+    const storedUser = localStorage.getItem('eso_user');
+    if (token && storedUser) {
+      api.defaults.headers.common.Authorization = `Bearer ${token}`;
+      setUser(JSON.parse(storedUser));
+      refreshUser();
+    }
   }, []);
 
-  /**
-   * LOGIN
-   */
-  async function login(newToken: string) {
-    storeToken(newToken);
-    setToken(newToken);
-
-    try {
-      await refreshProfile();
-    } catch (e) {
-      console.error('Erro ao atualizar perfil após login', e);
-    }
-  }
-
-  /**
-   * LOGOUT
-   */
-  function logout() {
-    removeToken();
-    setToken(null);
-    setProfile(null);
-    setVbucksState(null);
-  }
-
-  /**
-   * REFRESH PROFILE
-   */
-  async function refreshProfile() {
-    try {
-      const p = await fetchProfile();
-      if (p) {
-        setProfile(p);
-        setVbucksState(p.vbucks ?? null);
-      } else {
-        setProfile(null);
-        setVbucksState(null);
-      }
-    } catch (err: any) {
-      console.error('refreshProfile error', err);
-      toast.error('Erro ao atualizar perfil.');
-      setProfile(null);
-      setVbucksState(null);
-      throw err;
-    }
-  }
-
-  /**
-   * ATUALIZAR SALDO GLOBAL
-   */
-  function setVbucks(n: number) {
-    setVbucksState(n);
-    setProfile((old) => (old ? { ...old, vbucks: n } : old));
-  }
+  const signIn = (token: string, userData: User) => {
+    localStorage.setItem('eso_token', token);
+    localStorage.setItem('eso_user', JSON.stringify(userData));
+    api.defaults.headers.common.Authorization = `Bearer ${token}`;
+    setUser(userData);
+  };
 
   return (
-    <AuthContext.Provider 
-      value={{ token, profile, vbucks, loading, login, logout, refreshProfile, setVbucks }}
-    >
+    <AuthContext.Provider value={{ user, signIn, signOut, refreshUser, isAuthenticated: !!user }}>
       {children}
     </AuthContext.Provider>
   );
-};
-
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used inside AuthProvider');
-  return ctx;
 }
+
+export const useAuth = () => useContext(AuthContext);

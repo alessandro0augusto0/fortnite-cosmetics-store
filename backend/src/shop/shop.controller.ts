@@ -9,49 +9,31 @@ import {
 import { ShopService } from './shop.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
-@Controller('shop')
+@Controller()
 export class ShopController {
   constructor(private readonly shopService: ShopService) {}
 
-  // ============================================================
-  // COMPRA
-  // ============================================================
   @UseGuards(JwtAuthGuard)
-  @Post('buy')
-  async buy(
-    @Req() req,
-    @Body() body: { cosmeticId: string; cosmeticName: string; price?: number },
-  ) {
-    const price = body.price ?? 800;
-    return this.shopService.buyCosmetic(
-      req.user.sub,
-      body.cosmeticId,
-      body.cosmeticName,
-      price,
-    );
+  @Post(['shop/purchase', 'shop/buy'])
+  async purchase(@Req() req, @Body() body: { cosmeticId: string }) {
+    return this.shopService.purchaseCosmetic(req.user.sub, body.cosmeticId);
   }
 
-  // ============================================================
-  // HISTÓRICO DE COMPRAS
-  // ============================================================
   @UseGuards(JwtAuthGuard)
-  @Get('purchases')
-  async getPurchases(@Req() req) {
-    return this.shopService.getPurchases(req.user.sub);
+  @Post(['shop/refund', 'shop/return'])
+  async refund(@Req() req, @Body() body: { cosmeticId: string }) {
+    return this.shopService.refundCosmetic(req.user.sub, body.cosmeticId);
   }
 
-  // ============================================================
-  // DEVOLUÇÃO
-  // ============================================================
   @UseGuards(JwtAuthGuard)
-  @Post('return')
-  async returnPurchase(
-    @Req() req,
-    @Body() body: { purchaseId: string },
-  ) {
-    return this.shopService.returnPurchase(
-      req.user.sub,
-      body.purchaseId,
-    );
+  @Get(['history', 'shop/history'])
+  async history(@Req() req) {
+    return this.shopService.getHistory(req.user.sub);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(['shop/purchases'])
+  async purchases(@Req() req) {
+    return this.shopService.getInventory(req.user.sub);
   }
 }

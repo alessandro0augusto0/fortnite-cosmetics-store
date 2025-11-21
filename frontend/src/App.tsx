@@ -1,66 +1,65 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
-import CosmeticsPage from './pages/CosmeticsPage';
-import CosmeticDetailsPage from './pages/CosmeticDetailsPage'; // <--- NOVO
-import AuthPage from './pages/AuthPage';
-import ProtectedRoute from './components/ProtectedRoute';
-import Header from "./components/Header";
+import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { Home } from './pages/Home';
+import { Login } from './pages/Login';
+import { Register } from './pages/Register';
+import { Dashboard } from './pages/Dashboard';
 
-function Home() {
+const queryClient = new QueryClient();
+
+function Navbar() {
+  const { user, signOut } = useAuth();
+
   return (
-    <div className="max-w-3xl mx-auto p-8 text-center">
-      <h1 className="text-3xl font-semibold mb-3">Fortnite Cosmetics Store</h1>
-      <p className="text-gray-400">Explore, filtre e descubra cosméticos do Fortnite.</p>
-      <div className="mt-6 flex flex-col items-center gap-3">
-        <a
-          href="/cosmetics"
-          className="inline-block px-4 py-2 rounded-md border border-gray-700 hover:bg-gray-800"
-        >
-          Ir para Cosméticos
-        </a>
-        <a
-          href="/auth"
-          className="inline-block px-4 py-2 rounded-md border border-gray-700 hover:bg-gray-800"
-        >
-          Fazer Login / Registrar
-        </a>
+    <header className="bg-white border-b p-4 mb-6 shadow-sm sticky top-0 z-50">
+      <div className="max-w-6xl mx-auto flex justify-between items-center">
+        <Link to="/" className="text-2xl font-black text-blue-600">
+          SISTEMA ESO
+        </Link>
+        <div className="flex items-center gap-4">
+          {user ? (
+            <>
+              <span className="font-bold text-yellow-600 bg-yellow-100 px-3 py-1 rounded-full">{user.vbucks} V$</span>
+              <Link to="/dashboard" className="hover:underline">
+                Meus Itens
+              </Link>
+              <button type="button" onClick={signOut} className="text-red-500 hover:text-red-700">
+                Sair
+              </button>
+            </>
+          ) : (
+            <div className="space-x-4">
+              <Link to="/login" className="text-gray-600 hover:text-blue-600">
+                Login
+              </Link>
+              <Link to="/register" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                Criar Conta
+              </Link>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </header>
   );
 }
 
-export default function App() {
+function App() {
   return (
-    <BrowserRouter>
-      <Header />
-
-      <main className="py-6">
-        <Routes>
-          <Route path="/" element={<Home />} />
-
-          {/* LISTAGEM DE COSMÉTICOS */}
-          <Route
-            path="/cosmetics"
-            element={
-              <ProtectedRoute>
-                <CosmeticsPage />
-              </ProtectedRoute>
-            }
-          />
-
-          {/* DETALHES DO COSMÉTICO */}
-          <Route
-            path="/cosmetic/:id"
-            element={
-              <ProtectedRoute>
-                <CosmeticDetailsPage />
-              </ProtectedRoute>
-            }
-          />
-
-          {/* LOGIN */}
-          <Route path="/auth" element={<AuthPage />} />
-        </Routes>
-      </main>
-    </BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <BrowserRouter>
+          <Navbar />
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
+
+export default App;

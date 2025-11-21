@@ -8,97 +8,111 @@ import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class ShopService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  // ============================================================
-  // COMPRA DE COSMÉTICO
-  // ============================================================
-  async buyCosmetic(
-    userId: string,
-    cosmeticId: string,
-    cosmeticName: string,
-    price: number,
-  ) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
+  async purchaseCosmetic(userId: string, cosmeticId: string) {
+    const [user, cosmetic] = await Promise.all([
+      this.prisma.user.findUnique({ where: { id: userId } }),
+      this.prisma.cosmetic.findUnique({ where: { id: cosmeticId } }),
+    ]);
 
-    if (!user) throw new BadRequestException('Usuário não encontrado.');
+    if (!user) {
+      throw new BadRequestException('Usuário não encontrado.');
+    }
 
-    if (user.vbucks < price) {
+    if (!cosmetic) {
+      throw new NotFoundException('Cosmético não encontrado.');
+    }
+
+    if (user.vbucks < cosmetic.price) {
       throw new ForbiddenException('Saldo insuficiente.');
     }
 
-    // Criar compra
-    await this.prisma.purchase.create({
-      data: {
-        userId,
-        cosmeticId,
-        cosmeticName,
-        price,
-      },
+    const alreadyOwned = await this.prisma.userItem.findUnique({
+      where: { userId_cosmeticId: { userId, cosmeticId } },
     });
 
-    // Atualizar saldo
-    const updatedUser = await this.prisma.user.update({
-      where: { id: userId },
-      data: { vbucks: user.vbucks - price },
-    });
+    if (alreadyOwned) {
+      throw new BadRequestException('Você já possui este item.');
+    }
+
+    const [, , updatedUser] = await this.prisma.$transaction([
+      this.prisma.userItem.create({
+        data: { userId, cosmeticId },
+      }),
+      this.prisma.transaction.create({
+        data: {
+          userId,
+          cosmeticId,
+          type: 'PURCHASE',
+          amount: cosmetic.price,
+        },
+      }),
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { vbucks: { decrement: cosmetic.price } },
+        select: { vbucks: true },
+      }),
+    ]);
 
     return {
-      message: `Compra de ${cosmeticName} concluída com sucesso!`,
+      success: true,
+      message: `Compra de ${cosmetic.name} concluída com sucesso!`,
       newBalance: updatedUser.vbucks,
     };
   }
 
-  // ============================================================
-  // LISTAR COMPRAS
-  // ============================================================
-  async getPurchases(userId: string) {
-    return this.prisma.purchase.findMany({
+  async refundCosmetic(userId: string, cosmeticId: string) {
+    const ownedItem = await this.prisma.userItem.findUnique({
+      where: { userId_cosmeticId: { userId, cosmeticId } },
+      include: { cosmetic: true },
+    });
+
+    if (!ownedItem) {
+      throw new BadRequestException('Item não encontrado na sua mochila.');
+    }
+
+    const cosmeticPrice = ownedItem.cosmetic.price;
+
+    const [, , updatedUser] = await this.prisma.$transaction([
+      this.prisma.userItem.delete({
+        where: { userId_cosmeticId: { userId, cosmeticId } },
+      }),
+      this.prisma.transaction.create({
+        data: {
+          userId,
+          cosmeticId,
+          type: 'REFUND',
+          amount: cosmeticPrice,
+        },
+      }),
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { vbucks: { increment: cosmeticPrice } },
+        select: { vbucks: true },
+      }),
+    ]);
+
+    return {
+      success: true,
+      message: `${ownedItem.cosmetic.name} devolvido e saldo reembolsado!`,
+      newBalance: updatedUser.vbucks,
+    };
+  }
+
+  async getInventory(userId: string) {
+    return this.prisma.userItem.findMany({
       where: { userId },
-      orderBy: { createdAt: 'desc' },
+      include: { cosmetic: true },
+      orderBy: { acquiredAt: 'desc' },
     });
   }
 
-  // ============================================================
-  // DEVOLUÇÃO DE COSMÉTICOS
-  // ============================================================
-  async returnPurchase(userId: string, purchaseId: string) {
-    const purchase = await this.prisma.purchase.findUnique({
-      where: { id: purchaseId },
+  async getHistory(userId: string) {
+    return this.prisma.transaction.findMany({
+      where: { userId },
+      include: { cosmetic: true },
+      orderBy: { date: 'desc' },
     });
-
-    if (!purchase) {
-      throw new NotFoundException('Compra não encontrada.');
-    }
-
-    if (purchase.userId !== userId) {
-      throw new ForbiddenException(
-        'Você não tem permissão para devolver esta compra.',
-      );
-    }
-
-    if (purchase.returned) {
-      throw new BadRequestException('Este item já foi devolvido.');
-    }
-
-    // Marcar compra como devolvida
-    await this.prisma.purchase.update({
-      where: { id: purchaseId },
-      data: { returned: true },
-    });
-
-    // Reembolsar usuário
-    const updatedUser = await this.prisma.user.update({
-      where: { id: userId },
-      data: { vbucks: { increment: purchase.price } },
-    });
-
-    return {
-      message: 'Cosmético devolvido com sucesso!',
-      refunded: purchase.price,
-      newBalance: updatedUser.vbucks,
-    };
   }
 }

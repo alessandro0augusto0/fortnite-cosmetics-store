@@ -25,7 +25,7 @@ COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/dist/data/sample-cosmetics.json ./dist/data/sample-cosmetics.json
 
 ENV NODE_ENV=production
-ENV PORT=4000
+ENV PORT=3000
 
-EXPOSE 4000
+EXPOSE 3000
 CMD ["node", "dist/main.js"]

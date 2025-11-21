@@ -1,240 +1,178 @@
 # 🎮 Fortnite Cosmetics Store
 
-Aplicação completa (frontend + backend) que consome a **API pública do Fortnite** para exibir, filtrar e simular a compra de cosméticos com créditos virtuais (V-Bucks).
-Desenvolvido como parte de um **desafio técnico**, com foco em boas práticas, arquitetura limpa e documentação completa.
+Aplicação full-stack (NestJS + React) que sincroniza o catálogo público do Fortnite e permite simular compras de cosméticos usando V-Bucks. Todo o ambiente pode ser iniciado com **Docker Compose** e também há instruções para rodar cada serviço manualmente.
 
 ---
 
-## ⚙️ Visão Geral
+## 📦 Arquitetura
 
-* **Frontend:** React + TypeScript (Vite)
-* **Backend:** NestJS + Prisma ORM + PostgreSQL
-* **Estilo:** TailwindCSS
-* **Autenticação:** JWT + bcrypt
-* **Containerização:** Docker Compose
-* **Integração:** API externa [Fortnite API](https://fortnite-api.com/v2/cosmetics)
+| Camada   | Stack principal | Destaques |
+|----------|-----------------|-----------|
+| Backend  | NestJS · Prisma · PostgreSQL | Auth JWT, sincronização agendada com [fortnite-api.com](https://dash.fortnite-api.com/), compra/devolução com histórico |
+| Frontend | React 18 · Vite · TailwindCSS | Catálogo paginado, filtros avançados, compras inline, integração total via Axios |
+| Infra    | Docker Compose               | Serviços `postgres`, `backend`, `frontend` com migrations aplicadas automaticamente |
 
----
+Arquivos importantes:
 
-## 🚀 Tecnologias Utilizadas
-
-### **Frontend**
-
-* React (Vite + TypeScript)
-* Tailwind CSS
-* Axios (integração com API)
-* ESLint e PostCSS configurados
-
-### **Backend**
-
-* NestJS
-* Prisma ORM
-* PostgreSQL
-* JWT (autenticação)
-* Docker e Docker Compose
+```
+backend/         API NestJS + Prisma
+frontend/        SPA React + Vite
+BACKLOG.md       Próximas entregas
+Dockerfile(s)    Build de cada serviço
+docker-compose.yml  Orquestração local
+```
 
 ---
 
-## 💻 Como Rodar o Projeto (Ambiente de Desenvolvimento)
+## ✅ Requisitos do desafio
 
-### 1️⃣ Clonar o repositório
+| Item | Status |
+|------|--------|
+| Listagem paginada com filtros (nome, tipo, raridade, flags novo/venda) | ✅ |
+| Indicadores "Novo", "Na Loja" e "Já adquirido" | ✅ |
+| Cadastro/Login com bônus de 10 000 V-Bucks | ✅ |
+| Compra/devolução com saldo e histórico | ✅ |
+| Sincronização periódica de `/cosmetics`, `/cosmetics/new`, `/shop` | ✅ (cron + endpoint manual) |
+| Inventário e histórico disponíveis via API | ✅ (frontend dedicado em andamento) |
+| Página pública de usuários/perfis | 🔄 Backend pronto (`GET /users`, `/users/:id`); UI pendente |
+| Filtro por data/promoção e bundles | 🔜 listado no BACKLOG |
+
+> Consulte `BACKLOG.md` para saber o que falta (bundles, página de detalhes, filtros de data/promoção, etc.).
+
+---
+
+## 🛠️ Pré-requisitos
+
+- Docker Desktop 4.27+ (ou compatível)
+- Node.js 20.x se for executar sem Docker
+- npm (o projeto usa `package-lock.json`)
+
+---
+
+## 🚀 Subindo tudo com Docker
 
 ```bash
 git clone https://github.com/alessandro0augusto0/fortnite-cosmetics-store.git
 cd fortnite-cosmetics-store
+
+# primeira execução (constrói imagens e aplica migrations)
+docker compose up --build -d
+
+# acompanhar logs do backend
+docker logs -f eso_backend
 ```
 
-### 2️⃣ Subir os containers
+Serviços expostos:
+
+| Serviço   | URL                  | Observações |
+|-----------|----------------------|-------------|
+| Frontend  | http://localhost:8080 | SPA servida via nginx |
+| Backend   | http://localhost:3000 | Endpoints `/auth/*`, `/register`, `/login`, `/cosmetics`, `/shop/*`, etc. |
+| PostgreSQL| localhost:5432        | Credenciais `admin:admin`, banco `sistema_eso_db` |
+
+O backend executa `npx prisma migrate deploy` em toda inicialização para manter o schema atualizado com `backend/prisma/migrations`.
+
+---
+
+## 🧑‍💻 Executando sem Docker
+
+### Backend
 
 ```bash
-docker compose -f infra/docker-compose.yml up -d --build
+cd backend
+npm install
+# ajuste backend/prisma/.env se quiser apontar para outro banco
+npx prisma migrate dev
+npm run start:dev
 ```
 
-Isso iniciará:
+Variáveis importantes (`backend/prisma/.env` padrão):
 
-* **Backend:** `http://localhost:4000`
-* **Banco PostgreSQL:** `localhost:5432` (usuário, senha e banco: `fortnite`)
-
-### 3️⃣ Ver logs (opcional)
-
-```bash
-docker logs -f infra-backend-1
+```
+DATABASE_URL=postgresql://admin:admin@localhost:5432/sistema_eso_db?schema=public
+JWT_SECRET=supersecret_eso_key
+PORT=3000
 ```
 
-### 4️⃣ Acessar o container do backend (opcional)
-
-```bash
-docker exec -it infra-backend-1 bash
-```
-
-### 5️⃣ Rodar migrations ou gerar o Prisma Client manualmente (caso necessário)
-
-```bash
-npx prisma migrate dev --name init
-npx prisma generate
-```
-
-### 6️⃣ Rodar o frontend
+### Frontend
 
 ```bash
 cd frontend
 npm install
 npm run dev
+# abre http://localhost:5173
 ```
 
-Acesse: [http://localhost:5173](http://localhost:5173)
+Para apontar para outro backend basta definir `VITE_API_BASE`.
 
 ---
 
-## 🧩 Estrutura de Pastas
+## 🔌 Principais endpoints
 
-```
-fortnite-cosmetics-store/
-├── backend/
-│   ├── src/
-│   │   ├── auth/
-│   │   ├── cosmetics/
-│   │   ├── prisma/
-│   │   └── app.module.ts
-│   ├── prisma/schema.prisma
-│   ├── Dockerfile
-│   └── package.json
-│
-├── frontend/
-│   ├── public/images/
-│   ├── src/
-│   │   ├── data/
-│   │   ├── App.tsx
-│   │   └── main.tsx
-│   └── vite.config.ts
-│
-└── infra/
-    └── docker-compose.yml
-```
+| Método | Rota                    | Descrição |
+|--------|-------------------------|-----------|
+| POST   | `/register` / `/auth/register` | Cria usuário, retorna `{ token, user }` e credita 10 000 V-Bucks |
+| POST   | `/login` / `/auth/login`       | Autentica e retorna `{ token, user }` |
+| GET    | `/me` / `/auth/me`             | Perfil autenticado + itens possuídos |
+| GET    | `/cosmetics`                   | Catálogo paginado (`page`, `search`, `type`, `rarity`, `isNew`, `isOnSale`) |
+| GET    | `/cosmetics/:id`               | Detalhes completos de um cosmético |
+| POST   | `/cosmetics/sync`              | Força sincronização com a Fortnite API |
+| POST   | `/shop/purchase`               | Compra cosmético e debita V-Bucks |
+| POST   | `/shop/refund`                 | Devolve cosmético e reembolsa V-Bucks |
+| GET    | `/shop/purchases`              | Inventário do usuário autenticado |
+| GET    | `/history`                     | Histórico de transações |
+| GET    | `/users` / `/users/:id`        | Listagem pública de perfis e itens |
+
+Fontes externas consumidas diretamente:
+
+- `GET https://fortnite-api.com/v2/cosmetics/br`
+- `GET https://fortnite-api.com/v2/cosmetics/new`
+- `GET https://fortnite-api.com/v2/shop`
 
 ---
 
-## 🔌 Endpoints Disponíveis
+## 🧾 Fluxos principais
 
-### Base URL
-
-```
-http://localhost:4000
-```
-
-### **POST /auth/register**
-
-Cria um novo usuário no banco.
-
-**Request Body**
-
-```json
-{
-  "email": "usuario@teste.com",
-  "password": "123456"
-}
-```
-
-**Response 201**
-
-```json
-{
-  "access_token": "jwt_gerado_aqui"
-}
-```
+1. **Sincronização:** tarefa agendada (`SYNC_CRON_EXPR`) ou `POST /cosmetics/sync` que atualiza catálogo, novidades e itens em loja.
+2. **Cadastro/Login:** bcrypt + JWT; respostas incluem snapshot do usuário para atualizar o frontend imediatamente.
+3. **Compra/Devolução:** operações transacionais no Prisma (`User`, `UserItem`, `Transaction`) com retorno do saldo atualizado.
+4. **Frontend:** React Query mantém o cache do catálogo e atualiza o contexto de autenticação após compras/devoluções.
 
 ---
 
-### **POST /auth/login**
+## 🧪 Testes & comandos úteis
 
-Realiza login com usuário existente.
+```bash
+# backend
+cd backend
+npm run lint
+npm run test:e2e
 
-**Request Body**
+# frontend
+cd frontend
+npm run lint
+# testes unitários serão adicionados em breve
 
-```json
-{
-  "email": "usuario@teste.com",
-  "password": "123456"
-}
+# sincronizar catálogo manualmente
+curl -X POST http://localhost:3000/cosmetics/sync
 ```
 
-**Response 200**
-
-```json
-{
-  "access_token": "jwt_gerado_aqui"
-}
-```
+Cobertura automatizada está em construção; por enquanto garantimos linting e build limpos antes de cada PR.
 
 ---
 
-### **GET /cosmetics**
+## 🗺️ Roadmap imediato
 
-Lista todos os cosméticos (dados da API Fortnite).
+- Página de detalhes do cosmético na SPA
+- UI pública para `/users` + filtros
+- Suporte a bundles (comprar um item marca todos os itens relacionados)
+- Filtros por intervalo de datas e promoções
+- Suites de testes (Playwright + Vitest) e mocks da API externa
 
-### **GET /cosmetics/new**
-
-Lista cosméticos novos.
-
-### **GET /cosmetics/shop**
-
-Lista cosméticos atualmente à venda.
+Veja `BACKLOG.md` para acompanhar essas entregas.
 
 ---
 
-## 🧭 Como Testar o Sistema (Para Avaliadores)
+## 💬 Suporte
 
-1. **Registrar um novo usuário:**
-
-   * `POST http://localhost:4000/auth/register`
-   * Body:
-
-     ```json
-     { "email": "usuario@teste.com", "password": "123456" }
-     ```
-
-2. **Logar com o usuário criado:**
-
-   * `POST http://localhost:4000/auth/login`
-
-3. **Listar cosméticos:**
-
-   * `GET http://localhost:4000/cosmetics`
-
-4. **Explorar o frontend:**
-
-   * `http://localhost:5173`
-
-5. **Banco de dados (opcional):**
-
-   ```bash
-   docker exec -it infra-db-1 psql -U fortnite -d fortnite
-   \dt
-   SELECT * FROM "User";
-   ```
-
----
-
-## 🧠 Decisões Técnicas Relevantes
-
-* **NestJS** adotado pela arquitetura modular e integração limpa com Prisma.
-* **Prisma ORM** garante consistência e tipagem forte no acesso ao banco.
-* **Docker Compose** padroniza todo o ambiente de desenvolvimento.
-* **TailwindCSS** usado para prototipagem e responsividade rápida.
-* **Axios** para consumo direto da API pública do Fortnite.
-* **Commits semânticos** e versionamento limpo (semver).
-
----
-
-## 🧪 Testes Automatizados (Planejados)
-
-* Configuração inicial com **Jest**.
-* Mocks da API externa com `msw` no frontend.
-
----
-
-## 👤 Autor
-
-**Alessandro Augusto**
-Estudante de Engenharia de Computação 💻
-Desenvolvido como parte do desafio técnico **Fortnite Cosmetics Store**.
+Abra uma issue ou procure **@alessandro0augusto0** quando precisar. Contribuições são muito bem-vindas! 😉

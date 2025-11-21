@@ -16,7 +16,9 @@ export class SyncTask implements OnModuleInit {
       this.logger.log(`Cron triggered (expr=${cronExpr}) — iniciando syncWithRemote()`);
       try {
         const res = await this.cosmeticsService.syncWithRemote();
-        this.logger.log(`Cron sync concluído: imported=${res.imported} updated=${res.updated}`);
+        this.logger.log(
+          `Cron sync concluido: catalogImported=${res.catalogImported} catalogUpdated=${res.catalogUpdated} onSale=${res.markedOnSale} newItems=${res.markedAsNew}`,
+        );
       } catch (err) {
         this.logger.error(`Cron sync falhou: ${(err as Error).message}`);
       }

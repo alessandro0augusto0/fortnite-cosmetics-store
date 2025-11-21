@@ -9,38 +9,50 @@ datasource db {
 }
 
 model User {
-  id         String      @id @default(uuid())
-  email      String      @unique
-  password   String
-  vbucks     Int         @default(10000)
-  createdAt  DateTime    @default(now())
-  purchases  Purchase[]
+  id           String        @id @default(uuid())
+  email        String        @unique
+  password     String
+  vbucks       Int           @default(10000)
+  createdAt    DateTime      @default(now())
+  items        UserItem[]
+  transactions Transaction[]
 }
 
 model Cosmetic {
-  id          String      @id @default(uuid())
-  name        String
-  description String?
-  type        String?
-  rarity      String?
-  image       String?
-  price       Int         @default(800)      // fallback price
-  regularPrice Int?                           // price in shop (regular)
-  finalPrice   Int?                           // final price if discounted
-  isNew       Boolean     @default(false)     // flagged from /cosmetics/new
-  onSale      Boolean     @default(false)     // flagged if present in /shop
-  createdAt   DateTime    @default(now())
-  purchases   Purchase[]
+  id            String        @id
+  name          String
+  description   String?
+  type          String
+  rarity        String
+  image         String?
+  price         Int           @default(0)
+  addedAt       DateTime
+  isNew         Boolean       @default(false)
+  isOnSale      Boolean       @default(false)
+  lastSync      DateTime      @default(now())
+  items         UserItem[]
+  transactions  Transaction[]
 }
 
-model Purchase {
-  id            String   @id @default(uuid())
-  userId        String
-  cosmeticId    String
-  cosmeticName  String
-  price         Int
-  createdAt     DateTime @default(now())
-  returned      Boolean  @default(false)
+model UserItem {
+  id         String   @id @default(uuid())
+  userId     String
+  cosmeticId String
+  acquiredAt DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id])
+  cosmetic Cosmetic @relation(fields: [cosmeticId], references: [id])
+
+  @@unique([userId, cosmeticId])
+}
+
+model Transaction {
+  id         String   @id @default(uuid())
+  userId     String
+  cosmeticId String
+  type       String
+  amount     Int
+  date       DateTime @default(now())
 
   user     User     @relation(fields: [userId], references: [id])
   cosmetic Cosmetic @relation(fields: [cosmeticId], references: [id])
