@@ -3,7 +3,7 @@ import axios from 'axios';
 import { getToken, clearToken } from './auth';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE,
+  baseURL: import.meta.env.VITE_API_BASE || 'http://localhost:4000',
   timeout: 15000,
 });
 
